@@ -28,7 +28,7 @@ export default {
         }));
 
         // FIX 2: Using the latest stable model name
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
         const geminiRes = await fetch(geminiUrl, {
           method: 'POST',
