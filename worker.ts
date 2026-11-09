@@ -20,14 +20,36 @@ export default {
           return new Response(JSON.stringify({ text: "Error: GEMINI_API_KEY is missing." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
-        // Only send essential data to avoid token limits
-        const essentialCoins = coins.slice(0, 20).map((c: any) => ({
-          symbol: c.symbol.toUpperCase(),
-          price: c.current_price,
-          change24h: c.price_change_percentage_24h
-        }));
+        // 👇 SMART FILTERING LOGIC 👇
+        const q = question.toLowerCase();
+        
+        // 1. Find if the user mentioned a specific coin (by symbol or name)
+        const mentionedCoins = coins.filter((c: any) => 
+          q.includes(c.symbol.toLowerCase()) || 
+          q.includes(c.name.toLowerCase())
+        );
 
-        // Using the latest stable model name
+        let contextData;
+
+        if (mentionedCoins.length > 0) {
+          // If they asked about a specific coin, send ONLY that coin's data (max 3)
+          contextData = mentionedCoins.slice(0, 3).map((c: any) => ({
+            symbol: c.symbol.toUpperCase(),
+            name: c.name,
+            price: c.current_price,
+            change24h: c.price_change_percentage_24h
+          }));
+        } else {
+          // If they asked a general question (like "top gainers"), send just the top 5 coins
+          contextData = coins.slice(0, 5).map((c: any) => ({
+            symbol: c.symbol.toUpperCase(),
+            name: c.name,
+            price: c.current_price,
+            change24h: c.price_change_percentage_24h
+          }));
+        }
+
+        // 👇 CALL GEMINI WITH THE SMALL PAYLOAD 👇
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
         const geminiRes = await fetch(geminiUrl, {
@@ -36,10 +58,9 @@ export default {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `You are Ask Orb, a helpful crypto AI assistant. Answer the user's question in exactly 3 short sentences using this live market data: ${JSON.stringify(essentialCoins)}. The 4th line must be exactly "Not financial advice." Question: ${question}` 
+                text: `You are Ask Orb, a helpful crypto AI assistant. Answer the user's question in exactly 3 short sentences using this live market data: ${JSON.stringify(contextData)}. The 4th line must be exactly "Not financial advice." Question: ${question}` 
               }] 
             }],
-            // Turn off safety filters for financial data
             safetySettings: [
               { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
               { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -47,31 +68,27 @@ export default {
               { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
             ]
           }),
-          // 👇 FIX: Stop waiting after 15 seconds to prevent 524 error 👇
+          // Keep the 15-second timeout as a safety net
           signal: AbortSignal.timeout(15000)
         });
 
         const data = await geminiRes.json() as any;
         
-        // Check for API errors
         if (data.error) {
           return new Response(JSON.stringify({ text: "Gemini API Error: " + data.error.message }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
-        // Check if response is empty or blocked
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-           return new Response(JSON.stringify({ text: "Gemini blocked the response or returned empty. Reason: " + (data.promptFeedback?.blockReason || "Unknown") }), { status: 200, headers: {'Content-Type': 'application/json'} });
+           return new Response(JSON.stringify({ text: "Gemini blocked the response or returned empty." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
         const text = data.candidates[0].content.parts[0].text;
         return new Response(JSON.stringify({ text: text + "\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
 
       } catch (err: any) {
-        // 👇 FIX: Catch the timeout error and return a friendly message 👇
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
           return new Response(JSON.stringify({ text: "The AI is taking too long to respond. Please try a shorter question.\nNot financial advice." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
-        
         return new Response(JSON.stringify({ text: "Server error: " + err.message }), { status: 200, headers: {'Content-Type': 'application/json'} });
       }
     }
