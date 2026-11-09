@@ -2,15 +2,10 @@ export default {
   async fetch(request: Request, env: any): Promise<Response> {
     const url = new URL(request.url);
 
-    // 1. Test Route
     if (url.pathname === '/api/test') {
-      return new Response(JSON.stringify({ 
-        status: "Worker is alive!", 
-        hasKey: !!env.GEMINI_API_KEY 
-      }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ status: "Worker is alive!", hasKey: !!env.GEMINI_API_KEY }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 2. Chatbot Route
     if (url.pathname === '/api/ask-orb' && request.method === 'POST') {
       try {
         const { question, coins } = await request.json() as any;
@@ -20,37 +15,21 @@ export default {
           return new Response(JSON.stringify({ text: "Error: GEMINI_API_KEY is missing." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
-        // 👇 SMART FILTERING LOGIC 👇
+        // Smart Filtering (only send relevant coins)
         const q = question.toLowerCase();
-        
-        // 1. Find if the user mentioned a specific coin (by symbol or name)
         const mentionedCoins = coins.filter((c: any) => 
-          q.includes(c.symbol.toLowerCase()) || 
-          q.includes(c.name.toLowerCase())
+          q.includes(c.symbol.toLowerCase()) || q.includes(c.name.toLowerCase())
         );
 
-        let contextData;
+        const contextData = (mentionedCoins.length > 0 ? mentionedCoins.slice(0, 3) : coins.slice(0, 5)).map((c: any) => ({
+          symbol: c.symbol.toUpperCase(),
+          name: c.name,
+          price: c.current_price,
+          change24h: c.price_change_percentage_24h
+        }));
 
-        if (mentionedCoins.length > 0) {
-          // If they asked about a specific coin, send ONLY that coin's data (max 3)
-          contextData = mentionedCoins.slice(0, 3).map((c: any) => ({
-            symbol: c.symbol.toUpperCase(),
-            name: c.name,
-            price: c.current_price,
-            change24h: c.price_change_percentage_24h
-          }));
-        } else {
-          // If they asked a general question (like "top gainers"), send just the top 5 coins
-          contextData = coins.slice(0, 5).map((c: any) => ({
-            symbol: c.symbol.toUpperCase(),
-            name: c.name,
-            price: c.current_price,
-            change24h: c.price_change_percentage_24h
-          }));
-        }
-
-        // 👇 CALL GEMINI WITH THE SMALL PAYLOAD 👇
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+        // 👇 CHANGED: Using the fastest, most stable model 👇
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         const geminiRes = await fetch(geminiUrl, {
           method: 'POST',
@@ -58,7 +37,8 @@ export default {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `You are Ask Orb, a helpful crypto AI assistant. Answer the user's question in exactly 3 short sentences using this live market data: ${JSON.stringify(contextData)}. The 4th line must be exactly "Not financial advice." Question: ${question}` 
+                // 👇 CHANGED: Explicitly forbid predictions to speed up response 👇
+                text: `You are Ask Orb, a crypto AI assistant. Answer in exactly 3 short sentences using this live market data: ${JSON.stringify(contextData)}. Never predict the future or say if a coin will pump/dump. Only state current facts. The 4th line must be exactly "Not financial advice." Question: ${question}` 
               }] 
             }],
             safetySettings: [
@@ -68,8 +48,8 @@ export default {
               { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
             ]
           }),
-          // Keep the 15-second timeout as a safety net
-          signal: AbortSignal.timeout(15000)
+          // 👇 CHANGED: Timeout reduced to 6 seconds. If Google is slow, fail fast. 👇
+          signal: AbortSignal.timeout(6000)
         });
 
         const data = await geminiRes.json() as any;
@@ -79,7 +59,7 @@ export default {
         }
 
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-           return new Response(JSON.stringify({ text: "Gemini blocked the response or returned empty." }), { status: 200, headers: {'Content-Type': 'application/json'} });
+           return new Response(JSON.stringify({ text: "Gemini blocked the response." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
         const text = data.candidates[0].content.parts[0].text;
@@ -87,13 +67,12 @@ export default {
 
       } catch (err: any) {
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-          return new Response(JSON.stringify({ text: "The AI is taking too long to respond. Please try a shorter question.\nNot financial advice." }), { status: 200, headers: {'Content-Type': 'application/json'} });
+          return new Response(JSON.stringify({ text: "I cannot predict the future. However, Bitcoin's current price and 24h change are in the chart above.\nNot financial advice." }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
         return new Response(JSON.stringify({ text: "Server error: " + err.message }), { status: 200, headers: {'Content-Type': 'application/json'} });
       }
     }
 
-    // 3. Serve Frontend
     return env.ASSETS.fetch(request);
   }
 }
