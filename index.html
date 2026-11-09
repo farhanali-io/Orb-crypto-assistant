@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        // Handle environments where browser extensions attempt to reassign window.fetch
+        try {
+          var originalFetch = window.fetch;
+          var currentFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return currentFetch;
+            },
+            set: function(val) {
+              currentFetch = val;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {}
+
+        // Shield from extension errors (e.g. frame_ant / chrome-extension)
+        window.addEventListener('error', function(event) {
+          if (
+            event.filename && (
+              event.filename.indexOf('chrome-extension://') !== -1 ||
+              event.filename.indexOf('moz-extension://') !== -1 ||
+              event.filename.indexOf('frame_ant') !== -1
+            ) || (event.message && event.message.indexOf('Cannot set property fetch') !== -1)
+          ) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (
+            event.reason && (
+              (event.reason.stack && event.reason.stack.indexOf('chrome-extension://') !== -1) ||
+              (event.reason.message && event.reason.message.indexOf('Cannot set property fetch') !== -1)
+            )
+          ) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
+    <title>Orbix - Top 100 Crypto Heatmap & Bubbles</title>
+    <meta name="description" content="Interactive Top 100 cryptocurrency bubble heatmap visualizer, live market table, real-time prices, and detailed coin statistics." />
+    <meta property="og:title" content="Orbix - Top 100 Crypto Heatmap & Bubbles" />
+    <meta property="og:description" content="Interactive Top 100 cryptocurrency bubble heatmap visualizer, live market table, real-time prices, and detailed coin statistics." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-black text-white antialiased selection:bg-emerald-500/30 selection:text-emerald-300 min-h-screen overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,6 @@
+{
+  "name": "Orbix - Top 100 Crypto Heatmap & Bubbles",
+  "description": "Interactive Top 100 cryptocurrency bubble heatmap visualizer, live market table, real-time prices, and detailed coin statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
