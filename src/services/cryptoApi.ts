@@ -9,9 +9,16 @@ const CACHE_TIME_KEY = 'orbix_cached_time_v1';
 
 export function getStoredApiKey(): { key: string; type: 'demo' | 'pro' } {
   try {
-    const key = localStorage.getItem(API_KEY_STORAGE_KEY) || '';
-    const type = (localStorage.getItem(API_KEY_TYPE_STORAGE_KEY) as 'demo' | 'pro') || 'demo';
-    return { key, type };
+    // 1. Check if user manually saved a key in settings
+    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedKey) {
+      const type = (localStorage.getItem(API_KEY_TYPE_STORAGE_KEY) as 'demo' | 'pro') || 'demo';
+      return { key: savedKey, type };
+    }
+    
+    // 2. If no saved key, use the default Cloudflare Environment Variable
+    const envKey = import.meta.env.VITE_COINGECKO_API_KEY || '';
+    return { key: envKey, type: 'demo' }; // Assuming your Cloudflare key is a Demo key
   } catch {
     return { key: '', type: 'demo' };
   }
