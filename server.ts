@@ -159,7 +159,7 @@ Follow these rules strictly:
       try {
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash', // ✅ FIXED: Line 183 - Changed from gemini-2.5-flash
+          model: 'gemini-3.8-flash', // ✅ FIXED: Line 183 - Changed from gemini-3.8-flash
           contents: cleanQ,
           config: {
             abortSignal: AbortSignal.timeout(9000),
@@ -237,7 +237,7 @@ app.post('/api/ask-orb/stream', async (req, res) => {
       try {
         const ai = new GoogleGenAI({ apiKey });
         const stream = await ai.models.generateContentStream({
-          model: 'gemini-2.5-flash', // ✅ FIXED: Line 261 - Changed from gemini-2.5-flash
+          model: 'gemini-3.8-flash', // ✅ FIXED: Line 261 - Changed from gemini-3.8-flash
           contents: cleanQ,
           config: {
             abortSignal: AbortSignal.timeout(15000),
