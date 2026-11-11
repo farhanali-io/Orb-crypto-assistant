@@ -12,10 +12,11 @@ interface HeaderProps {
   onNavigate: (route: string) => void;
   theme: ColorTheme;
   currentRoute: string;
+  mobileTab?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  searchQuery, setSearchQuery, onHomeClick, onNavigate, theme, currentRoute
+  searchQuery, setSearchQuery, onHomeClick, onNavigate, theme, currentRoute, mobileTab
 }) => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const isHeatmap = currentRoute === 'heatmap';
@@ -61,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="hidden md:flex items-center gap-4 shrink-0 ml-auto">
           <button onClick={() => onNavigate('#/about')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">About Us</button>
           <button onClick={() => onNavigate('#/contact')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">Contact Us</button>
-          {isHeatmap && <ThemeToggle theme={theme} />}
+          {isHeatmap && mobileTab !== 'tables' && <ThemeToggle theme={theme} />}
         </div>
 
         {/* Mobile Controls */}
@@ -71,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-4 h-4" />
             </button>
           )}
-          {isHeatmap && <ThemeToggle theme={theme} />}
+          {isHeatmap && mobileTab !== 'tables' && <ThemeToggle theme={theme} />}
         </div>
       </div>
 

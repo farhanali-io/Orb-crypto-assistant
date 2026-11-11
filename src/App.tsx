@@ -120,10 +120,10 @@ export default function App() {
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">
       <DustBackground />
       <div className="relative z-20">
-        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} />
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab} />
       </div>
 
-      <main className="relative z-10 flex-1 w-full bg-transparent flex flex-col">
+      <main className="relative z-10 w-full bg-transparent flex flex-col min-h-[calc(100vh-52px)]">
         {currentRoute === 'about' && <AboutPage onBack={handleBackToHeatmap} />}
         {currentRoute === 'contact' && <ContactPage onBack={handleBackToHeatmap} />}
         {currentRoute === 'coin' && selectedCoin && (
@@ -137,7 +137,7 @@ export default function App() {
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
               <BubbleCanvas coins={coins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>
-            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 pb-12 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'block'}`}>
+            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'block'}`}>
               <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} />
             </div>
           </div>
