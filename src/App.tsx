@@ -120,7 +120,7 @@ export default function App() {
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">
       <DustBackground />
       <div className="relative z-20">
-        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} />
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} />
       </div>
 
       <main className="relative z-10 flex-1 w-full bg-transparent flex flex-col">
@@ -133,7 +133,7 @@ export default function App() {
         )}
         {currentRoute === 'heatmap' && (
           <div className="w-full bg-transparent flex flex-col">
-            <TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} />
+            {currentRoute === 'heatmap' && <TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} />}
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
               <BubbleCanvas coins={coins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>

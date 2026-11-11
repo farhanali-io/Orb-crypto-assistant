@@ -11,17 +11,22 @@ interface HeaderProps {
   onHomeClick: () => void;
   onNavigate: (route: string) => void;
   theme: ColorTheme;
+  currentRoute: string; // NEW PROP
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  searchQuery, setSearchQuery, onHomeClick, onNavigate, theme,
+  searchQuery, setSearchQuery, onHomeClick, onNavigate, theme, currentRoute
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
+  const isHeatmap = currentRoute === 'heatmap';
+
   return (
     <header className="w-full bg-[#000000] border-b border-[#141414] select-none sticky top-0 z-40">
       <div className="w-full px-4 sm:px-6 h-[52px] flex items-center justify-between gap-3">
+        
+        {/* Left: Logo */}
         <div onClick={onHomeClick} className="flex items-center gap-2 cursor-pointer shrink-0">
           <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-300 flex items-center justify-center p-0.5">
             <div className="w-full h-full bg-black rounded-full flex items-center justify-center">
@@ -33,43 +38,55 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        <div className="hidden md:flex flex-1 max-w-md mx-4">
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search cryptocurrency..."
-              className="w-full h-9 pl-9 pr-8 bg-[#111111] hover:bg-[#161616] focus:bg-[#161616] border border-[#222222] focus:border-[#383838] rounded-full text-xs text-white placeholder-neutral-500 focus:outline-none transition-all"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+        {/* Center: Search pill (ONLY ON HEATMAP) */}
+        {isHeatmap && (
+          <div className="hidden md:flex flex-1 max-w-md mx-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search cryptocurrency..."
+                className="w-full h-9 pl-9 pr-8 bg-[#111111] hover:bg-[#161616] focus:bg-[#161616] border border-[#222222] focus:border-[#383838] rounded-full text-xs text-white placeholder-neutral-500 focus:outline-none transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="hidden md:flex items-center gap-4 shrink-0">
+        {/* Right: Nav, Theme Toggle (ONLY ON HEATMAP), Mobile Menu */}
+        <div className="hidden md:flex items-center gap-4 shrink-0 ml-auto">
           <button onClick={() => onNavigate('#/about')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">About Us</button>
           <button onClick={() => onNavigate('#/contact')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">Contact Us</button>
-          <ThemeToggle theme={theme} />
+          
+          {isHeatmap && <ThemeToggle theme={theme} />}
         </div>
 
-        <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle theme={theme} />
-          <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)} className="p-2 rounded-lg bg-[#111111] text-neutral-300 hover:text-white" title="Search">
-            <Search className="w-4 h-4" />
-          </button>
+        {/* Mobile Header Controls */}
+        <div className="flex md:hidden items-center gap-2 ml-auto">
+          {/* Mobile Theme Toggle (ONLY ON HEATMAP) */}
+          {isHeatmap && <ThemeToggle theme={theme} />}
+
+          {/* Mobile Search (ONLY ON HEATMAP) */}
+          {isHeatmap && (
+            <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)} className="p-2 rounded-lg bg-[#111111] text-neutral-300 hover:text-white" title="Search">
+              <Search className="w-4 h-4" />
+            </button>
+          )}
+          
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 rounded-lg bg-[#111111] text-neutral-300 hover:text-white" title="Menu">
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile dropdowns remain unchanged... */}
-      {mobileSearchOpen && (
+      {/* Mobile Search Dropdown (ONLY ON HEATMAP) */}
+      {isHeatmap && mobileSearchOpen && (
         <div className="md:hidden px-4 py-2 bg-[#0a0a0a] border-t border-[#1a1a1a] flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
@@ -80,6 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
+      {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden px-4 py-3 bg-[#0a0a0a] border-t border-[#181818] flex flex-col gap-2 animate-in slide-in-from-top-2 duration-150">
           <button onClick={() => { onNavigate('#/about'); setMobileMenuOpen(false); }} className="w-full text-left py-2 px-3 text-xs font-semibold text-neutral-200 hover:text-white hover:bg-[#141414] rounded-lg">About Us</button>
