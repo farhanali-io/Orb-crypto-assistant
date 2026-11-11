@@ -28,8 +28,8 @@ export default {
         }));
 
         // 👇 AUTO-FALLBACK LOGIC 👇
-        // We try gemini-2.0-flash first, and if it fails, we fall back to gemini-1.5-flash-latest
-        const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash-latest"];
+        // We try gemini-2.0-flash first, and if it fails, we fall back to gemini-2.5-flash
+        const modelsToTry = ["gemini-2.0-flash", "gemini-2.5-flash"];
         let textResponse = "";
         let lastError = "";
 
