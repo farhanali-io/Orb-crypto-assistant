@@ -137,14 +137,14 @@ export default function App() {
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
               <BubbleCanvas coins={coins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>
-            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'block'}`}>
+            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col h-[calc(100vh-125px)] md:h-auto'}`}>
               <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} />
             </div>
           </div>
         )}
       </main>
 
-      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 text-center">
+      <footer className="hidden md:block mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 text-center">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
           <div className="flex items-center gap-2"><span className="font-bold text-white">Orbix</span><span>·</span><span>Top 100 Cryptocurrency Bubble Heatmap</span></div>
           <div className="flex items-center gap-4 text-neutral-400">
