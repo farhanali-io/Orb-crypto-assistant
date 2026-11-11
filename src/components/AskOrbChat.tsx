@@ -111,8 +111,8 @@ export const AskOrbChat: React.FC<AskOrbChatProps> = ({
       <div
         className={`fixed z-[150] flex flex-col bg-[#000000] border-[#2A2A2A] text-white overflow-hidden shadow-2xl transition-all duration-300 font-sans ${
           isMobile
-            ? 'inset-x-0 bottom-0 h-[75vh] border-t rounded-t-[22px]'
-            : 'bottom-6 right-6 w-[380px] h-[70vh] max-h-[640px] border rounded-2xl'
+            ? 'inset-x-0 bottom-0 h-[100dvh] md:h-[75vh] border-t rounded-t-[22px]'
+            : 'bottom-6 right-6 w-[380px] h-[100dvh] md:h-[70vh] max-h-[640px] border rounded-2xl'
         }`}
         style={{
           boxShadow: isMobile

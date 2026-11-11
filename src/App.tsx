@@ -133,7 +133,7 @@ export default function App() {
         )}
         {currentRoute === 'heatmap' && (
           <div className="w-full bg-transparent flex flex-col">
-            {currentRoute === 'heatmap' && <TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} />}
+            {currentRoute === 'heatmap' && <div className={mobileTab === 'tables' ? 'hidden md:block' : 'block'}><TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} /></div>}
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
               <BubbleCanvas coins={coins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>
