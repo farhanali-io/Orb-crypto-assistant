@@ -58,6 +58,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
   timeFrame,
   searchQuery,
   onSelectCoin,
+  theme,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
@@ -398,8 +399,13 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
         // Background: #0A0A0A with inner gradient
         // Border: 2.5px solid #00FF88 (green) or #FF2D2D (red)
         // Outer glow shadow + soft drop shadow
-        const borderColor = isPositive ? '#00FF88' : '#FF2D2D';
-        const glowColor = isPositive ? 'rgba(0, 255, 136,' : 'rgba(255, 45, 45,';
+        const isClassic = theme === 'classic';
+        const borderColor = isPositive 
+          ? (isClassic ? '#00E676' : '#00F0FF') 
+          : (isClassic ? '#FF1E1E' : '#FF007F');
+        const glowColor = isPositive 
+          ? (isClassic ? 'rgba(0, 230, 118,' : 'rgba(0, 240, 255,') 
+          : (isClassic ? 'rgba(255, 30, 30,' : 'rgba(255, 0, 127,');
         const defaultBoxShadow = `0 0 16px 2px ${glowColor} 0.45), 0 4px 16px rgba(0, 0, 0, 0.8)`;
         const hoverBoxShadow = `0 0 24px 4px ${glowColor} 0.70), 0 6px 22px rgba(0, 0, 0, 0.95)`;
 
@@ -505,7 +511,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
               {/* TICKER: bold white, Inter font, centered */}
               {showSymbol && (
                 <span
-                  className="font-bold text-white font-sans text-center truncate leading-tight"
+                  className="font-bold text-bubble-white font-sans text-center truncate leading-tight"
                   style={{
                     fontSize: `${tickerFontSize}px`,
                     maxWidth: '100%',
@@ -520,7 +526,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
               {/* % Change in white, centered */}
               {showPercent && (
                 <span
-                  className="font-medium text-white font-sans text-center truncate leading-tight mt-0.5"
+                  className="font-medium text-bubble-white font-sans text-center truncate leading-tight mt-0.5"
                   style={{
                     fontSize: `${pctFontSize}px`,
                     maxWidth: '100%',
