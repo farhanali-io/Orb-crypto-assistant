@@ -240,7 +240,7 @@ app.post('/api/ask-orb/stream', async (req, res) => {
           model: 'gemini-3.8-flash', // ✅ FIXED: Line 261 - Changed from gemini-3.8-flash
           contents: cleanQ,
           config: {
-            abortSignal: AbortSignal.timeout(15000),
+            abortSignal: AbortSignal.timeout(30000),
             systemInstruction,
           },
         });
