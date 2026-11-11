@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import Groq from 'groq-sdk'; // ✅ ADDED: Line 6 - Import Groq
 
 dotenv.config();
 
@@ -11,6 +12,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+// ✅ ADDED: Line 14 - Initialize Groq Client
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Mount JSON parser specifically for /api routes
 app.use('/api', express.json({ limit: '10mb' }));
@@ -32,7 +36,6 @@ function formatCompact(val?: number): string {
 function computeServerFallback(cleanQ: string, ctx: any): string {
   const q = cleanQ.toLowerCase();
 
-  // Top Gainers?
   if (q.includes('top gainer') || q.includes('gainers') || q.includes('who is up') || q.includes('best coin')) {
     const g1 = ctx.topGainers[0];
     const g2 = ctx.topGainers[1];
@@ -43,7 +46,6 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // Why BTC down / up?
   if (q.includes('btc') || q.includes('bitcoin')) {
     const btc = ctx.btc;
     const btcChange = btc?.price_change_percentage_24h ?? 0;
@@ -56,7 +58,6 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // What is Market Cap?
   if (q.includes('market cap') || q.includes('market capitalization') || q.includes('what is cap')) {
     const line1 = `Market capitalization represents a cryptocurrency's current price multiplied by its total circulating supply.`;
     const line2 = `The combined market cap of the Top 100 coins currently stands at ${formatCompact(ctx.totalMarketCap)}.`;
@@ -64,7 +65,6 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // Matched coin
   if (ctx.matchedCoin) {
     const coin = ctx.matchedCoin;
     const isUp = (coin.price_change_percentage_24h ?? 0) >= 0;
@@ -74,7 +74,6 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // General Market Overview
   const line1 = `The Top 100 cryptocurrency market currently averages a ${ctx.avgChange >= 0 ? '+' : ''}${ctx.avgChange.toFixed(2)}% move across the board today.`;
   const line2 = `Bitcoin (BTC) anchors the market at $${ctx.btc?.current_price?.toLocaleString() || 'N/A'}, while ${ctx.topGainers[0]?.name || 'gainers'} leads top momentum.`;
   const line3 = `Total 24-hour tracked volume stands at ${formatCompact(ctx.totalVolume)}.`;
@@ -146,8 +145,13 @@ app.post('/api/ask-orb', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
+    const systemInstruction = `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap.
+Follow these rules strictly:
+1. Answer the user's question in EXACTLY 3 simple, direct lines using the provided live CoinGecko market data only.
+2. The 4th and final line must be EXACTLY: "Not financial advice." (on its own line).
+3. Do NOT include markdown headers, bullet points, asterisks, or conversational filler. Keep it concise.\n\n${ctx.marketSummary}`;
 
-    // Call server-side Gemini API using gemini-3.8-flash
+    // --- Attempt 1: Gemini ---
     const rawApiKey = process.env.GEMINI_API_KEY || '';
     const apiKey = rawApiKey && !rawApiKey.startsWith('MY_') ? rawApiKey : '';
 
@@ -155,17 +159,11 @@ app.post('/api/ask-orb', async (req, res) => {
       try {
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-2.5-flash', // ✅ FIXED: Line 183 - Changed from gemini-3.8-flash
           contents: cleanQ,
           config: {
             abortSignal: AbortSignal.timeout(9000),
-            systemInstruction: `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap.
-Follow these rules strictly:
-1. Answer the user's question in EXACTLY 3 simple, direct lines using the provided live CoinGecko market data only.
-2. The 4th and final line must be EXACTLY: "Not financial advice." (on its own line).
-3. Do NOT include markdown headers, bullet points, asterisks, or conversational filler. Keep it concise.
-
-${ctx.marketSummary}`,
+            systemInstruction,
           },
         });
 
@@ -177,11 +175,31 @@ ${ctx.marketSummary}`,
           return res.json({ text });
         }
       } catch (geminiError) {
-        console.warn('Server Gemini API call failed, falling back to live calculation:', geminiError);
+        console.warn('Gemini API failed, trying Groq:', geminiError);
       }
     }
 
-    // Fallback response with live market calculation
+    // --- Attempt 2: Groq (Backup) --- ✅ ADDED: Lines 203-220
+    try {
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: cleanQ },
+        ],
+        model: 'llama-3.3-70b-versatile',
+      });
+
+      let text = chatCompletion.choices[0]?.message?.content || '';
+      text = text.trim();
+      if (!text.toLowerCase().includes('not financial advice')) {
+        text += '\nNot financial advice.';
+      }
+      return res.json({ text });
+    } catch (groqError) {
+      console.warn('Groq API also failed, using local fallback:', groqError);
+    }
+
+    // --- Attempt 3: Local Fallback ---
     const fallbackText = computeServerFallback(cleanQ, ctx);
     return res.json({ text: fallbackText });
   } catch (error) {
@@ -209,6 +227,9 @@ app.post('/api/ask-orb/stream', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
+    const systemInstruction = `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`;
+
+    // --- Attempt 1: Gemini Stream ---
     const rawApiKey = process.env.GEMINI_API_KEY || '';
     const apiKey = rawApiKey && !rawApiKey.startsWith('MY_') ? rawApiKey : '';
 
@@ -216,11 +237,11 @@ app.post('/api/ask-orb/stream', async (req, res) => {
       try {
         const ai = new GoogleGenAI({ apiKey });
         const stream = await ai.models.generateContentStream({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-2.5-flash', // ✅ FIXED: Line 261 - Changed from gemini-3.8-flash
           contents: cleanQ,
           config: {
             abortSignal: AbortSignal.timeout(15000),
-            systemInstruction: `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`,
+            systemInstruction,
           },
         });
 
@@ -232,11 +253,34 @@ app.post('/api/ask-orb/stream', async (req, res) => {
         res.write('data: [DONE]\n\n');
         return res.end();
       } catch (streamErr) {
-        console.warn('Server Gemini stream failed, falling back:', streamErr);
+        console.warn('Gemini stream failed, trying Groq stream:', streamErr);
       }
     }
 
-    // Fallback streaming simulation
+    // --- Attempt 2: Groq Stream (Backup) --- ✅ ADDED: Lines 281-305
+    try {
+      const stream = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: cleanQ },
+        ],
+        model: 'llama-3.3-70b-versatile',
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    } catch (groqErr) {
+      console.warn('Groq stream also failed, using local fallback:', groqErr);
+    }
+
+    // --- Attempt 3: Local Fallback Stream ---
     const fallbackText = computeServerFallback(cleanQ, ctx);
     res.write(`data: ${JSON.stringify({ chunk: fallbackText })}\n\n`);
     res.write('data: [DONE]\n\n');
