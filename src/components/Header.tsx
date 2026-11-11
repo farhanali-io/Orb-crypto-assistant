@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, X, Menu } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { TimeFrame, ColorTheme } from '../types/crypto';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -11,15 +11,13 @@ interface HeaderProps {
   onHomeClick: () => void;
   onNavigate: (route: string) => void;
   theme: ColorTheme;
-  currentRoute: string; // NEW PROP
+  currentRoute: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   searchQuery, setSearchQuery, onHomeClick, onNavigate, theme, currentRoute
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-
   const isHeatmap = currentRoute === 'heatmap';
 
   return (
@@ -59,29 +57,21 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Right: Nav, Theme Toggle (ONLY ON HEATMAP), Mobile Menu */}
+        {/* Right: Nav & Theme Toggle */}
         <div className="hidden md:flex items-center gap-4 shrink-0 ml-auto">
           <button onClick={() => onNavigate('#/about')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">About Us</button>
           <button onClick={() => onNavigate('#/contact')} className="text-xs font-medium text-neutral-300 hover:text-white transition-colors">Contact Us</button>
-          
           {isHeatmap && <ThemeToggle theme={theme} />}
         </div>
 
-        {/* Mobile Header Controls */}
+        {/* Mobile Controls */}
         <div className="flex md:hidden items-center gap-2 ml-auto">
-          {/* Mobile Theme Toggle (ONLY ON HEATMAP) */}
-          {isHeatmap && <ThemeToggle theme={theme} />}
-
-          {/* Mobile Search (ONLY ON HEATMAP) */}
           {isHeatmap && (
             <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)} className="p-2 rounded-lg bg-[#111111] text-neutral-300 hover:text-white" title="Search">
               <Search className="w-4 h-4" />
             </button>
           )}
-          
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 rounded-lg bg-[#111111] text-neutral-300 hover:text-white" title="Menu">
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+          {isHeatmap && <ThemeToggle theme={theme} />}
         </div>
       </div>
 
@@ -94,14 +84,6 @@ export const Header: React.FC<HeaderProps> = ({
             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500"><X className="w-3.5 h-3.5" /></button>}
           </div>
           <button onClick={() => setMobileSearchOpen(false)} className="text-xs text-neutral-400 px-2 py-1">Done</button>
-        </div>
-      )}
-
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden px-4 py-3 bg-[#0a0a0a] border-t border-[#181818] flex flex-col gap-2 animate-in slide-in-from-top-2 duration-150">
-          <button onClick={() => { onNavigate('#/about'); setMobileMenuOpen(false); }} className="w-full text-left py-2 px-3 text-xs font-semibold text-neutral-200 hover:text-white hover:bg-[#141414] rounded-lg">About Us</button>
-          <button onClick={() => { onNavigate('#/contact'); setMobileMenuOpen(false); }} className="w-full text-left py-2 px-3 text-xs font-semibold text-neutral-200 hover:text-white hover:bg-[#141414] rounded-lg">Contact Us</button>
         </div>
       )}
     </header>

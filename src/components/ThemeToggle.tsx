@@ -9,7 +9,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme }) => {
   return (
     <button
       type="button"
-      id="theme-toggle"
+      className="theme-toggle-btn"
       aria-label="Toggle color theme"
       aria-pressed={theme === 'neon'}
       title={theme === 'neon' ? 'Switch to Classic' : 'Switch to Neon'}

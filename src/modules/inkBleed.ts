@@ -397,7 +397,8 @@ export function initInkBleed(options: InkBleedOptions = {}) {
 
   root.dataset.theme = initialTheme;
 
-  const toggleBtn = document.querySelector<HTMLButtonElement>(toggleSelector);
+  const toggleBtns = document.querySelectorAll<HTMLButtonElement>(toggleSelector);
+  const toggleBtn = toggleBtns[0];
   if (!toggleBtn) {
     console.warn(
       `[ink] Toggle button element matching selector "${toggleSelector}" was not found in the DOM. ` +
@@ -727,11 +728,11 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     else toggle({ x: e.clientX, y: e.clientY });
   };
 
-  toggleBtn?.addEventListener('click', handleToggleClick);
+  toggleBtns.forEach(btn => btn.addEventListener('click', handleToggleClick));
 
   return {
     destroy: () => {
-      toggleBtn?.removeEventListener('click', handleToggleClick);
+      toggleBtns.forEach(btn => btn.removeEventListener('click', handleToggleClick));
       activeTween?.kill();
       window.clearTimeout(resizeTimer);
       canvas.remove();

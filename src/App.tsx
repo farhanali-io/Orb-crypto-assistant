@@ -53,7 +53,7 @@ export default function App() {
   const inkRef = useRef<ReturnType<typeof initInkBleed> | null>(null);
   useEffect(() => {
     inkRef.current = initInkBleed({
-      toggleSelector: '#theme-toggle',
+      toggleSelector: '.theme-toggle-btn',
       storageKey: 'orbix_theme',
     });
     return () => {

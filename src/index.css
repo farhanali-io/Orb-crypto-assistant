@@ -115,3 +115,31 @@ html[data-theme='neon'] #theme-toggle .theme-toggle__neon { opacity: 1; transfor
 .glass-dropdown { background: rgba(13, 19, 33, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); }
 @keyframes pulse-subtle { 0%, 100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
 .animate-pulse-subtle { animation: pulse-subtle 3s ease-in-out infinite; }
+
+/* ==========================================================================
+   Mobile Fixes (Ask Orb Keyboard & Bottom Bar Alignment)
+   ========================================================================== */
+
+/* Fix Ask Orb disappearing when keyboard opens on iOS/Android */
+@media (max-width: 768px) {
+  /* Target the Ask Orb modal container to use dynamic viewport height */
+  .fixed.bottom-0.w-100.h-\[75vh\] {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 100000 !important;
+  }
+
+  /* Flatten the elevated center button in the Bottom Bar */
+  /* This targets the center Ask Orb button and removes the "floating" translate */
+  nav button.absolute.-top-4,
+  nav button.absolute.-top-5,
+  nav button.absolute.-top-6,
+  nav button[style*="translateY"] {
+    transform: translateY(0) !important;
+    top: 0 !important;
+    margin-top: 0 !important;
+  }
+}
