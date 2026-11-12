@@ -110,7 +110,14 @@ export default function App() {
   useEffect(() => { loadData(false); }, [loadData]);
   useEffect(() => { const interval = setInterval(() => loadData(false), 60000); return () => clearInterval(interval); }, [loadData]);
 
-  const filteredCoins = useMemo(() => {
+  const bubbleCoins = useMemo(() => {
+      if (timeFrame === 'favorites') {
+        return coins.filter(c => favorites.includes(c.id));
+      }
+      return coins;
+    }, [coins, timeFrame, favorites]);
+
+    const filteredCoins = useMemo(() => {
     if (!searchQuery.trim()) return coins;
     const q = searchQuery.toLowerCase().trim();
     return coins.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));

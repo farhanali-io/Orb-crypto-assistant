@@ -9,6 +9,7 @@ import {
   SimulationNodeDatum,
 } from 'd3-force';
 import { CryptoCoin, TimeFrame, ColorTheme } from '../types/crypto';
+import { Star } from 'lucide-react';
 import { formatCurrency, formatPercentage, formatCompactNumber } from '../services/cryptoApi';
 
 interface BubbleCanvasProps {
@@ -326,6 +327,14 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
         minHeight: isMobile ? '520px' : '680px',
       }}
     >
+      {bubbleNodes.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 font-sans pointer-events-none">
+          <Star className="w-10 h-10 mb-3 opacity-20" />
+          <p>No favorites yet.</p>
+          <p className="text-xs mt-1">Star a coin from the table or details page.</p>
+        </div>
+      )}
+
       {bubbleNodes.map(node => {
         const { id, coin, diameter, changeVal, isPositive, r } = node;
         const isClassic = theme === 'classic';
@@ -378,6 +387,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
               zIndex: isHovered ? 50 : matchesSearch ? 20 : 10,
               transform: `translate3d(${node.x - r}px, ${node.y - r}px, 0)`,
               transition: 'opacity 200ms ease',
+              touchAction: 'none', // Prevents mobile scroll while dragging
             }}
           >
             <div
