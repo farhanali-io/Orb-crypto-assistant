@@ -158,7 +158,15 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
   }, [timeFrame]);
 
   useEffect(() => {
-    if (!coins || coins.length === 0) return;
+    if (!coins || coins.length === 0) {
+      nodesRef.current = [];
+      setBubbleNodes([]);
+      if (simulationRef.current) {
+        simulationRef.current.stop();
+        simulationRef.current = null;
+      }
+      return;
+    }
     const { width, height } = containerSize;
     const mobile = width < 768;
     const top100 = coins.slice(0, 100);
