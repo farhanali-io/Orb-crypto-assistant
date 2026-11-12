@@ -1,4 +1,4 @@
-export type TimeFrame = 'hour' | 'day' | 'week' | 'month' | 'year' | 'day_marketcap';
+export type TimeFrame = 'hour' | 'day' | 'week' | 'month' | 'year' | 'day_marketcap' | 'favorites';
 
 export type BubbleSizeMode = 'market_cap' | 'volume' | 'performance' | 'equal';
 

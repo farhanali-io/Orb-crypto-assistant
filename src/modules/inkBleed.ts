@@ -1,8 +1,7 @@
 /**
- * Ink Bleed Theme Transition Module
- * Self-contained, isolated. Pipeline: html2canvas snapshot -> flip data-theme
- * -> WebGL2 noise-shader bleed -> fade out.
- * Fallback: CSS cross-fade (reduced motion, missing WebGL2, or lost context).
+ * Ink Bleed Theme Transition Module (Classic <-> Neon)
+ * Pipeline: html2canvas snapshot -> flip data-theme -> WebGL2 noise shader -> fade.
+ * Uses event delegation so the toggle survives React re-renders.
  */
 
 import gsap from 'gsap';
@@ -16,7 +15,6 @@ export interface InkBleedOptions {
   storageKey?: string;
 }
 
-// --- GLSL Shaders (verbatim, template strings, no bundler plugin) ---
 const NOISE_CELLS = 32.0;
 
 const FULLSCREEN_VERT = /* glsl */ `#version 300 es
@@ -177,7 +175,6 @@ void main() {
 }
 `;
 
-// --- Noise Texture Generator ---
 function generateNoiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
   const SIZE = 256;
   const CELLS = 32;
@@ -204,8 +201,7 @@ function generateNoiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
     const texelsPerCell = SIZE / CELLS;
     const out = new Float32Array(SIZE * SIZE);
     const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
-    const at = (cx: number, cy: number) =>
-      ((cy + CELLS) % CELLS) * CELLS + ((cx + CELLS) % CELLS);
+    const at = (cx: number, cy: number) => ((cy + CELLS) % CELLS) * CELLS + ((cx + CELLS) % CELLS);
 
     for (let y = 0; y < SIZE; y++) {
       const py = (y + 0.5) / texelsPerCell;
@@ -230,9 +226,7 @@ function generateNoiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
         out[y * SIZE + x] = nx0 + (nx1 - nx0) * v;
       }
     }
-    for (let i = 0; i < out.length; i++) {
-      out[i] = Math.max(-1, Math.min(1, out[i]! * 1.45));
-    }
+    for (let i = 0; i < out.length; i++) out[i] = Math.max(-1, Math.min(1, out[i]! * 1.45));
     return out;
   }
 
@@ -240,9 +234,7 @@ function generateNoiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
   const channels = [channel(rand), channel(rand), channel(rand), channel(rand)];
   const data = new Uint8Array(SIZE * SIZE * 4);
   for (let i = 0; i < SIZE * SIZE; i++) {
-    for (let c = 0; c < 4; c++) {
-      data[i * 4 + c] = Math.round((channels[c]![i]! * 0.5 + 0.5) * 255);
-    }
+    for (let c = 0; c < 4; c++) data[i * 4 + c] = Math.round((channels[c]![i]! * 0.5 + 0.5) * 255);
   }
 
   const tex = gl.createTexture();
@@ -256,7 +248,6 @@ function generateNoiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
   return tex;
 }
 
-// --- Shader Compilation ---
 function createProgram(gl: WebGL2RenderingContext, vert: string, frag: string) {
   const compile = (type: GLenum, src: string) => {
     const s = gl.createShader(type);
@@ -295,13 +286,7 @@ function createProgram(gl: WebGL2RenderingContext, vert: string, frag: string) {
   };
 }
 
-// --- Snapshot & Layout Utilities ---
-interface Snapshot {
-  theme: Theme;
-  canvas: HTMLCanvasElement;
-  scale: number;
-  key: string;
-}
+interface Snapshot { theme: Theme; canvas: HTMLCanvasElement; scale: number; key: string; }
 
 function getDocumentSize() {
   const el = document.documentElement;
@@ -318,59 +303,29 @@ function getRenderScale() {
   return Math.min(window.devicePixelRatio || 1, isCoarse ? 1.5 : 2);
 }
 
-/**
- * Reads the actual --bg CSS custom property value for a given theme.
- * Temporarily applies data-theme to <html> so selectors like
- * :root[data-theme], html[data-theme], or [data-theme] all resolve
- * correctly, then restores the previous value.
- */
-function getComputedThemeBackground(theme: Theme): string {
-  const root = document.documentElement;
-  const previousTheme = root.dataset.theme;
-
-  try {
-    root.dataset.theme = theme;
-    const computedBg = getComputedStyle(root).getPropertyValue('--bg').trim();
-    if (computedBg) {
-      return computedBg;
-    }
-  } finally {
-    if (previousTheme !== undefined) {
-      root.dataset.theme = previousTheme;
-    } else {
-      delete root.dataset.theme;
-    }
-  }
-
-  return theme === 'dark' ? '#000000' : '#f4f4f6';
+function getComputedThemeBackground(_theme: Theme): string {
+  return '#000000';
 }
 
 async function captureDocument(theme: Theme, scale: number, maxTextureSize: number): Promise<Snapshot> {
   const { width, height } = getDocumentSize();
   const safeScale = Math.min(scale, maxTextureSize / width, maxTextureSize / height);
   const key = getLayoutKey(scale);
-
   const { default: html2canvas } = await import('html2canvas');
 
   const canvas = await html2canvas(document.body, {
     scale: safeScale,
     backgroundColor: getComputedThemeBackground(theme),
-    x: 0,
-    y: 0,
-    width,
-    height,
-    scrollX: 0,
-    scrollY: 0,
+    x: 0, y: 0, width, height,
+    scrollX: 0, scrollY: 0,
     windowWidth: width,
     windowHeight: document.documentElement.clientHeight,
     logging: false,
     useCORS: true,
-    ignoreElements: (el) => {
-      return el.classList.contains('ink-canvas') || el.hasAttribute('data-ink-ignore');
-    },
+    ignoreElements: (el) => el.classList.contains('ink-canvas') || el.hasAttribute('data-ink-ignore'),
     onclone: (clonedDoc) => {
       clonedDoc.documentElement.dataset.theme = theme;
-      clonedDoc.querySelectorAll<HTMLElement>('[data-ink-live], #theme-toggle').forEach((el) => {
+      clonedDoc.querySelectorAll<HTMLElement>('[data-ink-live], .theme-toggle-btn').forEach((el) => {
         el.style.visibility = 'hidden';
       });
     },
@@ -379,10 +334,9 @@ async function captureDocument(theme: Theme, scale: number, maxTextureSize: numb
   return { theme, canvas, scale: safeScale, key };
 }
 
-// --- Main Engine ---
 export function initInkBleed(options: InkBleedOptions = {}) {
   const {
-    toggleSelector = '#theme-toggle',
+    toggleSelector = '.theme-toggle-btn',
     canvasClassName = 'ink-canvas',
     duration = 1.35,
     storageKey = 'orbix_theme',
@@ -391,24 +345,18 @@ export function initInkBleed(options: InkBleedOptions = {}) {
   const root = document.documentElement;
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-  // 1. Initial theme resolution & persistence
+  // Initial theme resolution
   const savedTheme = localStorage.getItem(storageKey) as Theme | null;
   const initialTheme: Theme = savedTheme === 'neon' ? 'neon' : 'classic';
-
   root.dataset.theme = initialTheme;
 
-  // Event delegation handles finding the button dynamically
-  if (!toggleBtn) {
-    console.warn(
-      `[ink] Toggle button element matching selector "${toggleSelector}" was not found in the DOM. ` +
-      `Ensure the element exists in HTML or is mounted before calling initInkBleed().`
-    );
-  } else {
-    toggleBtn.setAttribute('aria-pressed', String(initialTheme === 'dark'));
-    toggleBtn.setAttribute('data-ink-live', '');
-  }
+  // Mark all current buttons
+  document.querySelectorAll<HTMLButtonElement>(toggleSelector).forEach((btn) => {
+    btn.setAttribute('aria-pressed', String(initialTheme === 'neon'));
+    btn.setAttribute('data-ink-live', '');
+  });
 
-  // 2. Overlay canvas
+  // Create overlay canvas
   const canvas = document.createElement('canvas');
   canvas.className = canvasClassName;
   canvas.setAttribute('aria-hidden', 'true');
@@ -424,20 +372,14 @@ export function initInkBleed(options: InkBleedOptions = {}) {
   canvas.style.display = 'none';
   canvas.style.opacity = '0';
 
-  // 3. WebGL2 init
+  // WebGL2
   const gl = canvas.getContext('webgl2', {
-    alpha: false,
-    antialias: false,
-    depth: false,
-    stencil: false,
-    premultipliedAlpha: false,
-    preserveDrawingBuffer: false,
-    powerPreference: 'high-performance',
+    alpha: false, antialias: false, depth: false, stencil: false,
+    premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance',
   });
 
   let isWebGLAvailable = gl !== null;
   let isContextLost = false;
-
   let programInfo: ReturnType<typeof createProgram> | null = null;
   let vao: WebGLVertexArrayObject | null = null;
   let noiseTex: WebGLTexture | null = null;
@@ -451,7 +393,7 @@ export function initInkBleed(options: InkBleedOptions = {}) {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     } catch (e) {
-      console.warn('[ink] WebGL2 initialization failed; using cross-fade fallback.', e);
+      console.warn('[ink] WebGL2 init failed; using CSS fallback.', e);
       isWebGLAvailable = false;
     }
 
@@ -476,7 +418,7 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     });
   }
 
-  // 4. Precapture
+  // Precapture
   let isCapturing = false;
   let captureQueued = false;
   let resizeTimer = 0;
@@ -488,16 +430,12 @@ export function initInkBleed(options: InkBleedOptions = {}) {
   }
 
   async function runPrecapture() {
-    if (!gl || isCapturing || isAnimating) {
-      captureQueued = true;
-      return;
-    }
+    if (!gl || isCapturing || isAnimating) { captureQueued = true; return; }
     const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
     const scale = getRenderScale();
     const currentKey = getLayoutKey(scale);
-    const currentTheme = (root.dataset.theme as Theme) || 'light';
-    const targetTheme: Theme = currentTheme === 'dark' ? 'light' : 'dark';
-
+    const currentTheme = (root.dataset.theme as Theme) || 'classic';
+    const targetTheme: Theme = currentTheme === 'classic' ? 'neon' : 'classic';
     const needed = [currentTheme, targetTheme].filter((t) => textureMap.get(t)?.key !== currentKey);
     if (needed.length === 0) return;
 
@@ -506,10 +444,7 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     try {
       for (const t of needed) {
         const snap = await captureDocument(t, scale, maxTex);
-        if (getLayoutKey(scale) !== snap.key) {
-          captureQueued = true;
-          break;
-        }
+        if (getLayoutKey(scale) !== snap.key) { captureQueued = true; break; }
         let texEntry = textureMap.get(t);
         if (!texEntry) {
           const tex = gl.createTexture();
@@ -537,14 +472,11 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     }
   }
 
-  if (document.fonts) {
-    document.fonts.ready.then(() => schedulePrecapture(100));
-  } else {
-    window.addEventListener('load', () => schedulePrecapture(100));
-  }
+  if (document.fonts) document.fonts.ready.then(() => schedulePrecapture(100));
+  else window.addEventListener('load', () => schedulePrecapture(100));
   window.addEventListener('resize', () => schedulePrecapture(300));
 
-  // 5. Transition engine
+  // Transition engine
   let isAnimating = false;
   let activeTween: gsap.core.Tween | null = null;
   const spreadShape = { growth: 0.7, cleanupFrom: 0.45, cleanupReach: 0.4, cleanupPow: 2.0 };
@@ -553,8 +485,9 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     root.classList.add('ink-crossfade');
     root.dataset.theme = nextTheme;
     localStorage.setItem(storageKey, nextTheme);
-    if (toggleBtn) toggleBtn.setAttribute('aria-pressed', String(nextTheme === 'dark'));
-
+    document.querySelectorAll<HTMLButtonElement>(toggleSelector).forEach((btn) =>
+      btn.setAttribute('aria-pressed', String(nextTheme === 'neon'))
+    );
     window.setTimeout(() => {
       root.classList.remove('ink-crossfade');
       isAnimating = false;
@@ -565,47 +498,40 @@ export function initInkBleed(options: InkBleedOptions = {}) {
   function toggle(originPoint?: { x: number; y: number }) {
     if (isAnimating) return;
 
-    const currentTheme = (root.dataset.theme as Theme) || 'light';
+    const currentTheme = (root.dataset.theme as Theme) || 'classic';
     const nextTheme: Theme = currentTheme === 'classic' ? 'neon' : 'classic';
     const scale = getRenderScale();
     const currentKey = getLayoutKey(scale);
 
     const canUseWebGL =
-      isWebGLAvailable &&
-      !isContextLost &&
-      !reducedMotionQuery.matches &&
-      gl &&
-      programInfo &&
-      vao &&
-      noiseTex &&
+      isWebGLAvailable && !isContextLost && !reducedMotionQuery.matches &&
+      gl && programInfo && vao && noiseTex &&
       textureMap.get(currentTheme)?.key === currentKey &&
       textureMap.get(nextTheme)?.key === currentKey;
 
     isAnimating = true;
 
-    if (!canUseWebGL) {
-      fallbackCrossFade(nextTheme);
-      return;
-    }
+    if (!canUseWebGL) { fallbackCrossFade(nextTheme); return; }
 
     let center = originPoint;
-    if (!center && toggleBtn) {
-      const rect = toggleBtn.getBoundingClientRect();
-      center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    }
     if (!center) {
-      center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      const activeBtn = document.querySelector<HTMLElement>(toggleSelector);
+      if (activeBtn) {
+        const rect = activeBtn.getBoundingClientRect();
+        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      } else {
+        center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      }
     }
 
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
-    const maxDist =
-      Math.max(
-        Math.hypot(center.x, center.y),
-        Math.hypot(vw - center.x, center.y),
-        Math.hypot(center.x, vh - center.y),
-        Math.hypot(vw - center.x, vh - center.y)
-      ) + 6;
+    const maxDist = Math.max(
+      Math.hypot(center.x, center.y),
+      Math.hypot(vw - center.x, center.y),
+      Math.hypot(center.x, vh - center.y),
+      Math.hypot(vw - center.x, vh - center.y)
+    ) + 6;
 
     const seed = {
       x: Math.random() * 64 - 32,
@@ -621,7 +547,8 @@ export function initInkBleed(options: InkBleedOptions = {}) {
     const fromTex = textureMap.get(currentTheme)!;
     const toTex = textureMap.get(nextTheme)!;
 
-    const rimColor: [number, number, number] = nextTheme === 'classic' ? [1.0, 0.996, 0.985] : [0.0, 0.0, 0.015];
+    const rimColor: [number, number, number] =
+      nextTheme === 'classic' ? [1.0, 0.996, 0.985] : [0.0, 0.0, 0.015];
 
     canvas.style.display = 'block';
     canvas.style.opacity = '1';
@@ -654,20 +581,14 @@ export function initInkBleed(options: InkBleedOptions = {}) {
       gl.uniform2f(programInfo.uniform('uFromSize'), fromTex.width, fromTex.height);
       gl.uniform2f(programInfo.uniform('uToSize'), toTex.width, toTex.height);
 
-      gl.uniform4f(
-        programInfo.uniform('uFromMap'),
+      gl.uniform4f(programInfo.uniform('uFromMap'),
         fromTex.scale / canvasScale,
         Math.floor(window.scrollX * fromTex.scale + 0.5),
-        Math.floor(window.scrollY * fromTex.scale + 0.5),
-        0
-      );
-      gl.uniform4f(
-        programInfo.uniform('uToMap'),
+        Math.floor(window.scrollY * fromTex.scale + 0.5), 0);
+      gl.uniform4f(programInfo.uniform('uToMap'),
         toTex.scale / canvasScale,
         Math.floor(window.scrollX * toTex.scale + 0.5),
-        Math.floor(window.scrollY * toTex.scale + 0.5),
-        0
-      );
+        Math.floor(window.scrollY * toTex.scale + 0.5), 0);
 
       gl.uniform1f(programInfo.uniform('uCanvasScale'), canvasScale);
       gl.uniform2f(programInfo.uniform('uRes'), canvas.width, canvas.height);
@@ -695,7 +616,9 @@ export function initInkBleed(options: InkBleedOptions = {}) {
 
     root.dataset.theme = nextTheme;
     localStorage.setItem(storageKey, nextTheme);
-    if (toggleBtn) toggleBtn.setAttribute('aria-pressed', String(nextTheme === 'dark'));
+    document.querySelectorAll<HTMLButtonElement>(toggleSelector).forEach((btn) =>
+      btn.setAttribute('aria-pressed', String(nextTheme === 'neon'))
+    );
 
     const animState = { progress: 0 };
     activeTween = gsap.to(animState, {
@@ -723,11 +646,11 @@ export function initInkBleed(options: InkBleedOptions = {}) {
   }
 
   const handleToggleClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    // Check if the clicked element is the theme toggle or inside it
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
     if (target.closest(toggleSelector)) {
-      if (e.detail === 0) toggle(); // Keyboard click
-      else toggle({ x: e.clientX, y: e.clientY }); // Mouse click
+      if (e.detail === 0) toggle();
+      else toggle({ x: e.clientX, y: e.clientY });
     }
   };
 
