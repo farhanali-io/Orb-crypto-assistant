@@ -118,10 +118,23 @@ export default function App() {
     }, [coins, timeFrame, favorites]);
 
     const filteredCoins = useMemo(() => {
-    if (!searchQuery.trim()) return coins;
-    const q = searchQuery.toLowerCase().trim();
-    return coins.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
-  }, [coins, searchQuery]);
+    let result = coins;
+    
+    // If on Favorites tab, filter to only favorites (Works for Table View on desktop)
+    if (timeFrame === 'favorites') {
+      result = result.filter(c => favorites.includes(c.id));
+    }
+    
+    // Apply search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
+      );
+    }
+    
+    return result;
+  }, [coins, searchQuery, timeFrame, favorites]);
 
   return (
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">

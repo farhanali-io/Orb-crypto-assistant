@@ -194,7 +194,10 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
 
     const initialNodes: DynamicBubbleNode[] = top100.map((coin, index) => {
       let r = rawRadii[index] * scaleFactor;
-      r = Math.max(minRadiusFloor, Math.min(mobile ? 58 : 92, r));
+      const isFewCoins = top100.length < 20;
+      // Allow bubbles to grow much larger if there are fewer than 20 coins
+      const maxRadius = isFewCoins ? (mobile ? 140 : 220) : (mobile ? 58 : 92);
+      r = Math.max(minRadiusFloor, Math.min(maxRadius, r));
       const diameter = Math.round(r * 2);
       const changeVal = getChangeVal(coin);
       const pad = r + 8;
