@@ -140,14 +140,16 @@ export default function App() {
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">
       <DustBackground />
       <div className="relative z-20">
-        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab} />
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab}
+          coins={coins}
+          onSelectCoin={handleOpenFullCoinPage} />
       </div>
 
       <main className="relative z-10 w-full bg-transparent flex flex-col min-h-[calc(100vh-52px)]">
         {currentRoute === 'about' && <AboutPage onBack={handleBackToHeatmap} />}
         {currentRoute === 'contact' && <ContactPage onBack={handleBackToHeatmap} />}
         {currentRoute === 'coin' && selectedCoin && (
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="w-full">
             <CoinDetailPage coin={selectedCoin} onBack={handleBackToHeatmap} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
           </div>
         )}
@@ -158,22 +160,20 @@ export default function App() {
               <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>
             <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col pb-24 md:pb-12'}`}>
-              <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} />
+              <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
             </div>
           </div>
         )}
       </main>
 
-      <footer className="hidden md:block mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 text-center">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
-          <div className="flex items-center gap-2"><span className="font-bold text-white">Orbix</span><span>·</span><span>Top 100 Cryptocurrency Bubble Heatmap</span></div>
-          <div className="flex items-center gap-4 text-neutral-400">
-            <button onClick={() => { window.location.hash = '#/about'; }} className="hover:text-white transition-colors">About</button><span>·</span>
-            <button onClick={() => { window.location.hash = '#/contact'; }} className="hover:text-white transition-colors">Contact</button><span>·</span>
-            <span>hello@orbix.live</span>
-          </div>
+      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-8 px-4 text-center w-full relative z-10">
+        <div className="text-[11px] sm:text-xs text-neutral-500 font-mono tracking-wide">
+          <span className="text-white font-bold">© 2027 Orbix.</span> No financial advice. Do your own research.
         </div>
       </footer>
+
+
+      
 
       <MobileBottomBar activeTab={mobileTab} onTabChange={setMobileTab} onNavigate={route => { window.location.hash = route; }} currentRoute={currentRoute} onOpenAskOrb={() => setIsAskOrbOpen(true)} isAskOrbOpen={isAskOrbOpen} />
       {!isAskOrbOpen && (
