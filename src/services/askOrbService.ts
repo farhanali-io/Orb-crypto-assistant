@@ -20,34 +20,45 @@ export async function askOrbAssistant(
   coins: CryptoCoin[]
 ): Promise<string> {
   const cleanQ = question.trim();
+
   if (!cleanQ) {
     return 'Please enter a question about any cryptocurrency or market trend.\nCheck out our quick suggestions above for instant answers.\nWe track the Top 100 coins in real time.\nNot financial advice.';
   }
 
-  // 1. Call server-side proxy route (/api/ask-orb) where Gemini API runs securely with server secrets
+  const lq = cleanQ.toLowerCase();
+
+  // ---- Short-circuit greetings: never hit the AI API ----
+  const greetings = ['hi', 'hey', 'hello', 'yo', 'sup', 'howdy', 'hey orb', 'hi orb'];
+  if (greetings.includes(lq)) {
+    return "Hi! I'm Orb, your live crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nNot financial advice.";
+  }
+  if (lq.includes('how are you') || lq.includes('how r u') || lq.includes('how are u')) {
+    return "I'm doing great, thanks for asking! I'm Orb, your crypto assistant.\nWhich coin would you like to know about?\nNot financial advice.";
+  }
+
+  // ---- Server call (Gemini / Groq) ----
   try {
     const res = await fetch('/api/ask-orb', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: cleanQ,
-        coins,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: cleanQ, coins }),
     });
 
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data.text === 'string' && data.text.trim()) {
-        return data.text.trim();
+        const t = data.text.trim();
+        // Reject error strings so we fall through to local fallback
+        if (!/busy|timeout|aborted|error|high demand|not available/i.test(t.slice(0, 50))) {
+          return t;
+        }
       }
     }
   } catch (err) {
-    console.warn('Server /api/ask-orb request failed, using client fallback engine:', err);
+    console.warn('AI unavailable, using local CoinGecko fallback.');
   }
 
-  // 2. Client-side fallback with live CoinGecko data if offline or network issue
+  // ---- Local fallback (uses coins already loaded in browser) ----
   const btc = coins.find(c => c.symbol.toLowerCase() === 'btc') || coins[0];
   const eth = coins.find(c => c.symbol.toLowerCase() === 'eth') || coins[1];
 
@@ -61,15 +72,16 @@ export async function askOrbAssistant(
     coins.reduce((acc, c) => acc + (c.price_change_percentage_24h || 0), 0) /
     (coins.length || 1);
 
-  const qLower = cleanQ.toLowerCase();
-  const matchedCoin = coins.find(
-    c =>
-      qLower.includes(c.symbol.toLowerCase()) ||
-      qLower.includes(c.name.toLowerCase()) ||
-      qLower.includes(c.id.toLowerCase())
-  );
+  const matchedCoin = coins.find(c => {
+    const sym = (c.symbol || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    const id = (c.id || '').toLowerCase();
+    if (sym.length >= 2 && lq.includes(sym)) return true;
+    if (name.length >= 3 && lq.includes(name)) return true;
+    if (id.length >= 3 && lq.includes(id)) return true;
+    return false;
+  });
 
-  // Live CoinGecko Engine (100% deterministic, accurate, 3 simple lines + disclaimer)
   return generateLiveResponse(cleanQ, {
     coins,
     btc,
@@ -96,12 +108,6 @@ interface MarketContext {
 function generateLiveResponse(question: string, ctx: MarketContext): string {
   const q = question.toLowerCase();
 
-  // Greeting
-  if (['hi', 'hey', 'hello', 'yo', 'sup', 'hey there'].includes(q.trim())) {
-    return "Hello! I'm Orb, your crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nNot financial advice.";
-  }
-
-  // Question: Top Gainers?
   if (q.includes('top gainer') || q.includes('gainers') || q.includes('who is up') || q.includes('best coin')) {
     const g1 = ctx.topGainers[0];
     const g2 = ctx.topGainers[1];
@@ -112,7 +118,6 @@ function generateLiveResponse(question: string, ctx: MarketContext): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // Question: Why BTC down / up?
   if (q.includes('btc') || q.includes('bitcoin')) {
     const btc = ctx.btc;
     const btcChange = btc?.price_change_percentage_24h ?? 0;
@@ -125,7 +130,6 @@ function generateLiveResponse(question: string, ctx: MarketContext): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // Question: What is Market Cap?
   if (q.includes('market cap') || q.includes('market capitalization') || q.includes('what is cap')) {
     const line1 = `Market capitalization represents a cryptocurrency's current price multiplied by its total circulating supply.`;
     const line2 = `The combined market cap of the Top 100 coins currently stands at ${formatCompact(ctx.totalMarketCap)}.`;
@@ -133,7 +137,6 @@ function generateLiveResponse(question: string, ctx: MarketContext): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // Question about a specific matched coin
   if (ctx.matchedCoin) {
     const coin = ctx.matchedCoin;
     const isUp = (coin.price_change_percentage_24h ?? 0) >= 0;
@@ -143,7 +146,6 @@ function generateLiveResponse(question: string, ctx: MarketContext): string {
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
-  // General Market Overview
   const line1 = `The Top 100 cryptocurrency market currently averages a ${ctx.avgChange >= 0 ? '+' : ''}${ctx.avgChange.toFixed(2)}% move across the board today.`;
   const line2 = `Bitcoin (BTC) anchors the market at $${ctx.btc?.current_price?.toLocaleString() || 'N/A'}, while ${ctx.topGainers[0]?.name || 'gainers'} leads top momentum.`;
   const line3 = `Total 24-hour tracked volume stands at ${formatCompact(ctx.coins.reduce((a, c) => a + (c.total_volume || 0), 0))}.`;
