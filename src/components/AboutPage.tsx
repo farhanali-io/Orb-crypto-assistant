@@ -106,7 +106,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
             <img 
               src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1200" 
               alt="Team working on code" 
-              className="w-full h-[300px] sm:h-[450px] object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 grayscale group-hover:grayscale-0"
+              className="w-full h-[300px] sm:h-[450px] object-cover transition-all duration-700 md:opacity-80 md:group-hover:opacity-100 md:group-hover:scale-105 md:grayscale md:group-hover:grayscale-0"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-60" />
           </div>
@@ -115,7 +115,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
             <img 
               src="https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&q=80&w=1200" 
               alt="Crypto trading charts on screens" 
-              className="w-full h-[300px] sm:h-[450px] object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 grayscale group-hover:grayscale-0"
+              className="w-full h-[300px] sm:h-[450px] object-cover transition-all duration-700 md:opacity-80 md:group-hover:opacity-100 md:group-hover:scale-105 md:grayscale md:group-hover:grayscale-0"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-60" />
           </div>

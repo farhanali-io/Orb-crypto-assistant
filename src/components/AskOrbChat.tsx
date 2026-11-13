@@ -26,7 +26,7 @@ export const AskOrbChat: React.FC<AskOrbChatProps> = ({
     {
       id: 'welcome',
       sender: 'assistant',
-      text: "Hi! I'm Ask Orb, your live crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nI provide instant answers using live CoinGecko data only.\nNot financial advice.",
+      text: "Hi! I'm Orb, your live crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nI provide instant answers using live CoinGecko data only.\nNot financial advice.",
       timestamp: Date.now(),
     },
   ]);

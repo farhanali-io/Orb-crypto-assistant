@@ -105,12 +105,15 @@ function buildMarketSummary(coins: any[], cleanQ: string) {
     (coinList.length || 1);
 
   const qLower = cleanQ.toLowerCase();
-  const matchedCoin = coinList.find(
-    (c: any) =>
-      qLower.includes(c.symbol?.toLowerCase()) ||
-      qLower.includes(c.name?.toLowerCase()) ||
-      qLower.includes(c.id?.toLowerCase())
-  );
+  const matchedCoin = coinList.find((c: any) => {
+    const sym = (c.symbol || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    const id = (c.id || '').toLowerCase();
+    if (sym.length >= 2 && qLower.includes(sym)) return true;
+    if (name.length >= 3 && qLower.includes(name)) return true;
+    if (id.length >= 3 && qLower.includes(id)) return true;
+    return false;
+  });
 
   const btcChange = btc?.price_change_percentage_24h ?? 0;
   const ethChange = eth?.price_change_percentage_24h ?? 0;
@@ -119,11 +122,11 @@ function buildMarketSummary(coins: any[], cleanQ: string) {
 Live CoinGecko Top 100 Market Data:
 - Total Market Cap: ${formatCompact(totalMarketCap)}, 24h Volume: ${formatCompact(totalVolume)}
 - Top 100 Average 24h Change: ${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%
-- Bitcoin (BTC): Price $${btc?.current_price?.toLocaleString() || 'N/A'}, 24h: ${btcChange >= 0 ? '+' : ''}${btcChange.toFixed(2)}%, Low: $${btc?.low_24h?.toLocaleString() || 'N/A'}, High: $${btc?.high_24h?.toLocaleString() || 'N/A'}
-- Ethereum (ETH): Price $${eth?.current_price?.toLocaleString() || 'N/A'}, 24h: ${ethChange >= 0 ? '+' : ''}${ethChange.toFixed(2)}%
+- Bitcoin (BTC): Price $${btc?.current_price?.toLocaleString() || 'N/A'}, 24h: ${btcChange >= 0 ? '+' : ''}${btcChange.toFixed(2)}%, 7d: ${btc?.price_change_percentage_7d_in_currency?.toFixed(2) || 'N/A'}%, 30d: ${btc?.price_change_percentage_30d_in_currency?.toFixed(2) || 'N/A'}%
+- Ethereum (ETH): Price $${eth?.current_price?.toLocaleString() || 'N/A'}, 24h: ${ethChange >= 0 ? '+' : ''}${ethChange.toFixed(2)}%, 7d: ${eth?.price_change_percentage_7d_in_currency?.toFixed(2) || 'N/A'}%, 30d: ${eth?.price_change_percentage_30d_in_currency?.toFixed(2) || 'N/A'}%
 - Top 3 Gainers: ${topGainers.map((g: any) => `${g.name} (${g.symbol?.toUpperCase()} +${(g.price_change_percentage_24h ?? 0).toFixed(1)}%, $${g.current_price})`).join('; ')}
 - Top 3 Losers: ${topLosers.map((l: any) => `${l.name} (${l.symbol?.toUpperCase()} ${(l.price_change_percentage_24h ?? 0).toFixed(1)}%, $${l.current_price})`).join('; ')}
-${matchedCoin ? `- Matched Coin: ${matchedCoin.name} (${matchedCoin.symbol?.toUpperCase()}), Rank #${matchedCoin.market_cap_rank}, Price $${matchedCoin.current_price}, 24h ${matchedCoin.price_change_percentage_24h}%, 24h High $${matchedCoin.high_24h}, 24h Low $${matchedCoin.low_24h}, Cap ${formatCompact(matchedCoin.market_cap)}` : ''}
+${matchedCoin ? `- Matched Coin: ${matchedCoin.name} (${matchedCoin.symbol?.toUpperCase()}), Rank #${matchedCoin.market_cap_rank}, Price $${matchedCoin.current_price}, 24h ${matchedCoin.price_change_percentage_24h}%, 7d ${matchedCoin.price_change_percentage_7d_in_currency}%, 30d ${matchedCoin.price_change_percentage_30d_in_currency?.toFixed(2) || 'N/A'}%, Cap ${formatCompact(matchedCoin.market_cap)}` : ''}
 `.trim();
 
   return {
@@ -153,10 +156,17 @@ app.post('/api/ask-orb', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
-    const systemInstruction = `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap.
+    const systemInstruction = `You are Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap.
 Follow these rules strictly:
-1. Answer the user's question in EXACTLY 3 simple, direct lines using the provided live CoinGecko market data only.
-2. The 4th and final line must be EXACTLY: "Not financial advice." (on its own line).
+1. Handle small talk naturally:
+   - Greetings (hi/hello/hey) → friendly greeting + ask what crypto they want to know about.
+   - "how are you" → respond briefly as an AI assistant and pivot to crypto.
+   - "can we talk" / "tell me about yourself" → say you're Ask Orb, an AI assistant for the Orbix Top 100 bubble heatmap, and invite a crypto question.
+   Do NOT dump market data unless the user asks about the market.
+2. Otherwise, answer the user's question in EXACTLY 3 simple, direct lines using the provided live CoinGecko market data only.
+3. If the user asks a follow-up question (e.g., "its monthly change?", "how about 30 days?"), look at the previous conversation to know which coin they mean. If no coin is clearly referenced, ask "Which coin would you like to know about?" Do NOT default to BTC or ETH unless the user explicitly asks.
+4. If the user asks for financial advice (e.g., "should I buy?", "will it go up?"), politely state that you cannot give financial advice and provide the 24h price change instead.
+5. The final line must be EXACTLY: "Not financial advice." (on its own line).
 3. Do NOT include markdown headers, bullet points, asterisks, or conversational filler. Keep it concise.\n\n${ctx.marketSummary}`;
 
     // --- Attempt 1: Gemini ---
@@ -194,7 +204,7 @@ Follow these rules strictly:
           { role: 'system', content: systemInstruction },
           { role: 'user', content: cleanQ },
         ],
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
       });
 
       let text = chatCompletion.choices[0]?.message?.content || '';
@@ -235,7 +245,7 @@ app.post('/api/ask-orb/stream', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
-    const systemInstruction = `You are Ask Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`;
+    const systemInstruction = `You are Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`;
 
     // --- Attempt 1: Gemini Stream ---
     const rawApiKey = process.env.GEMINI_API_KEY || '';
@@ -272,7 +282,7 @@ app.post('/api/ask-orb/stream', async (req, res) => {
           { role: 'system', content: systemInstruction },
           { role: 'user', content: cleanQ },
         ],
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         stream: true,
       });
 

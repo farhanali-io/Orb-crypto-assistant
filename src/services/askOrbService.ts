@@ -96,6 +96,11 @@ interface MarketContext {
 function generateLiveResponse(question: string, ctx: MarketContext): string {
   const q = question.toLowerCase();
 
+  // Greeting
+  if (['hi', 'hey', 'hello', 'yo', 'sup', 'hey there'].includes(q.trim())) {
+    return "Hello! I'm Orb, your crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nNot financial advice.";
+  }
+
   // Question: Top Gainers?
   if (q.includes('top gainer') || q.includes('gainers') || q.includes('who is up') || q.includes('best coin')) {
     const g1 = ctx.topGainers[0];
