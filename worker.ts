@@ -77,7 +77,7 @@ export default {
           return new Response(JSON.stringify({ text: textResponse + "\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
         } else {
           // If both models fail, return the error
-          return new Response(JSON.stringify({ text: "AI Error: " + lastError }), { status: 200, headers: {'Content-Type': 'application/json'} });
+          return new Response(JSON.stringify({ text: "Orb is busy. Live fallback: " + lastError }), { status: 200, headers: {'Content-Type': 'application/json'} });
         }
 
       } catch (err: any) {
