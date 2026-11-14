@@ -54,7 +54,7 @@ export async function askOrbAssistant(
   try {
     let qForApi = cleanQ;
     const lastCoin = getLastCoinFromHistory();
-    if(lastCoin && /\b(its|it|that coin|monthly|yearly)\b/i.test(cleanQ) && !cleanQ.toLowerCase().includes(lastCoin)){
+    if(true && /\b(its|it|that coin|monthly|yearly)\b/i.test(cleanQ) && !cleanQ.toLowerCase().includes(lastCoin)){
       qForApi = `${lastCoin} ${cleanQ}`;
     }
     const hist = _extHistory || orbHistory.slice(-5);
