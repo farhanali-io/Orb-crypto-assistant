@@ -129,6 +129,19 @@ interface MarketContext {
 }
 
 function generateLiveResponse(question: string, ctx: MarketContext): string {
+  // Check if question asks for monthly/yearly and we have history coin
+  const lastCoin = ctx.matchedCoin;
+  const qLower = question.toLowerCase();
+  const wantsMonthly = qLower.includes('monthly') || qLower.includes('30d') || qLower.includes('30 day');
+  const wantsYearly = qLower.includes('yearly') || qLower.includes('1y') || qLower.includes('365d');
+  const wantsWeekly = qLower.includes('weekly') || qLower.includes('7d') || qLower.includes('7 day');
+
+  if(lastCoin && (wantsMonthly || wantsYearly || wantsWeekly)){
+    const coin = lastCoin;
+    // CoinGecko free API often only has 24h, so explain
+    return `${coin.name} (${coin.symbol.toUpperCase()}) is at ${coin.current_price?.toLocaleString()} now. 24h: ${coin.price_change_percentage_24h?.toFixed(2)}% | 7d data: ${(coin as any).price_change_percentage_7d_in_currency?.toFixed(2) || 'N/A - use chart'} | 30d requires Pro API. Current market cap ${coin.market_cap?.toLocaleString()} rank #${coin.market_cap_rank}.\nNot financial advice.`;
+  }
+
   const q = question.toLowerCase();
 
   if (q.includes('top gainer') || q.includes('gainers') || q.includes('who is up') || q.includes('best coin')) {
