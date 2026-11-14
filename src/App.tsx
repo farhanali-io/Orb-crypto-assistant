@@ -8,6 +8,7 @@ import { initInkBleed } from './modules/inkBleed';
 import { getFullTop100Coins } from './data/top100Coins';
 import { fetchTop100Coins, getFavorites, toggleFavorite } from './services/cryptoApi';
 import { Header } from './components/Header';
+import { LandingPage } from './components/LandingPage';
 import { BubbleCanvas } from './components/BubbleCanvas';
 import { MarketTable } from './components/MarketTable';
 import { CoinDetailPage } from './components/CoinDetailPage';
@@ -37,6 +38,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('bubbles');
   const [favorites, setFavorites] = useState<string[]>(() => getFavorites());
   const [isAskOrbOpen, setIsAskOrbOpen] = useState(false);
+  const [hasLaunched, setHasLaunched] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
   // Read the current theme from <html data-theme>, which the ink module owns.
@@ -135,6 +137,10 @@ export default function App() {
     
     return result;
   }, [coins, searchQuery, timeFrame, favorites]);
+
+  if (!hasLaunched) {
+    return <LandingPage onLaunch={() => setHasLaunched(true)} />;
+  }
 
   return (
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">

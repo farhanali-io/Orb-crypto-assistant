@@ -338,7 +338,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
         minHeight: isMobile ? '520px' : '680px',
       }}
     >
-      {bubbleNodes.length === 0 && (
+      {bubbleNodes.length === 0 && timeFrame === 'favorites' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 font-sans pointer-events-none">
           <Star className="w-10 h-10 mb-3 opacity-20" />
           <p>No favorites yet.</p>
