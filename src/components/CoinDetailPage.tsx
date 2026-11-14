@@ -190,7 +190,7 @@ export const CoinDetailPage: React.FC<CoinDetailPageProps> = ({
           </div>
 
           <div className="flex flex-col md:items-end">
-            <div className="text-5xl sm:text-6xl font-bold text-white tracking-tighter font-mono">
+            <div className="text-5xl sm:text-6xl font-bold text-white tracking-tighter font-sans tabular-nums">
               {formatCurrency(coin.current_price)}
             </div>
             <div className={`flex items-center gap-1 text-sm font-semibold font-mono mt-2 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -298,7 +298,7 @@ export const CoinDetailPage: React.FC<CoinDetailPageProps> = ({
           </div>
           <div className="py-6 px-6">
             <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Fully Diluted Value</div>
-            <div className="text-xl font-bold text-white font-mono">{formatCompactNumber(coin.fully_diluted_valuation || coin.market_cap)}</div>
+            <div className="text-xl font-bold text-white font-mono">{coin.fully_diluted_valuation ? formatCompactNumber(coin.fully_diluted_valuation) : '-'}</div>
           </div>
           <div className="py-6 pl-6">
             <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">24H Range</div>

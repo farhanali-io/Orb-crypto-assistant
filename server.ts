@@ -1,13 +1,7 @@
-import { Agent, setGlobalDispatcher } from 'undici';
-
-// Fix Node.js hidden fetch timeout for long-running Gemini requests
-setGlobalDispatcher(new Agent({
-  headersTimeout: 330_000, // 5.5 minutes
-  bodyTimeout: 660_000,    // 11 minutes
-}));
-
 import express from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';

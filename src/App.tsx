@@ -143,7 +143,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-20 md:pb-5">
+    <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-0">
       <DustBackground />
       <div className="relative z-20">
         <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab}
@@ -165,7 +165,7 @@ export default function App() {
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
               <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
             </div>
-            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col pb-24 md:pb-12'}`}>
+            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col pb-2'}`}>
               <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function App() {
 
       <MobileBottomBar activeTab={mobileTab} onTabChange={setMobileTab} onNavigate={route => { window.location.hash = route; }} currentRoute={currentRoute} onOpenAskOrb={() => setIsAskOrbOpen(true)} isAskOrbOpen={isAskOrbOpen} />
       {!isAskOrbOpen && (
-        <button onClick={() => setIsAskOrbOpen(true)} className="hidden md:flex fixed bottom-6 right-6 z-50 items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#111111] hover:bg-[#181818] border border-[#2A2A2A] hover:border-[#00FF88]/40 shadow-[0_8px_30px_rgba(0,0,0,0.85)] transition-all hover:scale-105 active:scale-95 cursor-pointer group" style={{ boxShadow: '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 255, 136, 0.18)' }} title="Ask Orb - AI Assistant">
+        <button onClick={() => setIsAskOrbOpen(true)} className="flex fixed bottom-20 md:bottom-6 right-6 z-[200] items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#111111] hover:bg-[#181818] border border-[#2A2A2A] hover:border-[#00FF88]/40 shadow-[0_8px_30px_rgba(0,0,0,0.85)] transition-all hover:scale-105 active:scale-95 cursor-pointer group" style={{ boxShadow: '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 255, 136, 0.18)' }} title="Ask Orb - AI Assistant">
           <span className="w-2.5 h-2.5 rounded-full bg-[#00FF88] shadow-[0_0_8px_#00FF88] animate-pulse" /><span className="text-sm font-bold text-white tracking-wide group-hover:text-[#00FF88] transition-colors">Ask Orb</span>
         </button>
       )}

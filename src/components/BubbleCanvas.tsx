@@ -331,7 +331,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
       ref={containerRef}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className="relative w-full overflow-hidden select-none"
+      className="relative w-full overflow-hidden select-none pb-20 md:pb-0"
       style={{
         backgroundColor: 'transparent',
         height: isMobile ? 'calc(100vh - 175px)' : 'calc(100vh - 110px)',

@@ -1,5 +1,18 @@
 import { CryptoCoin } from '../types/crypto';
 
+let orbHistory: {role: 'user'|'assistant', text: string}[] = [];
+function getLastCoinFromHistory(): string {
+  for(let i=orbHistory.length-1;i>=0;i--){
+    const t=orbHistory[i].text.toLowerCase();
+    const m=t.match(/\b(btc|eth|sol|usd1|usdt|bnb|xrp|doge|trx|ada|avax)\b/);
+    if(m) return m[0];
+  }
+  return '';
+}
+
+export function getOrbHistory(){ return orbHistory; }
+export function clearOrbHistory(){ orbHistory = []; }
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -17,7 +30,8 @@ function formatCompact(val?: number): string {
 
 export async function askOrbAssistant(
   question: string,
-  coins: CryptoCoin[]
+  coins: CryptoCoin[],
+  _extHistory?: {role:string,text:string}[]
 ): Promise<string> {
   const cleanQ = question.trim();
 
@@ -38,15 +52,24 @@ export async function askOrbAssistant(
 
   // ---- Server call (Gemini / Groq) ----
   try {
+    let qForApi = cleanQ;
+    const lastCoin = getLastCoinFromHistory();
+    if(lastCoin && /\b(its|it|that coin|monthly|yearly)\b/i.test(cleanQ) && !cleanQ.toLowerCase().includes(lastCoin)){
+      qForApi = `${lastCoin} ${cleanQ}`;
+    }
+    const hist = _extHistory || orbHistory.slice(-5);
     const res = await fetch('/api/ask-orb', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: cleanQ, coins }),
+      body: JSON.stringify({ question: qForApi, coins, history: hist }),
     });
 
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data.text === 'string' && data.text.trim()) {
+        orbHistory.push({role:'user', text: cleanQ});
+        orbHistory.push({role:'assistant', text: data.text.trim()});
+        if(orbHistory.length>10) orbHistory=orbHistory.slice(-10);
         const t = data.text.trim();
         // Reject error strings so we fall through to local fallback
         if (!/busy|timeout|aborted|error|high demand|not available/i.test(t.slice(0, 50))) {

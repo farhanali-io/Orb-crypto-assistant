@@ -20,9 +20,15 @@ export const MarketTable: React.FC<MarketTableProps> = ({
   
   const getPercentColor = (val?: number) => {
     if (val === undefined || val === null) return 'text-slate-400 bg-[#111]';
+    if (Math.abs(val) < 0.05) return 'text-slate-400 bg-[#111]'; // Neutral gray for 0
     if (val > 0) return 'text-white bg-[#16a34a]'; // solid green
     if (val < 0) return 'text-white bg-[#dc2626]'; // solid red
     return 'text-slate-400 bg-[#111]'; // neutral
+  };
+
+  const formatPercent = (val?: number) => {
+    if (!val || Math.abs(val) < 0.05) return '0.0%';
+    return `${val.toFixed(1)}%`;
   };
 
   const getAIPrediction = (val?: number) => {
@@ -102,27 +108,27 @@ export const MarketTable: React.FC<MarketTableProps> = ({
                 {/* Performance Cells */}
                 <td className="p-1">
                   <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_1h_in_currency)}`}>
-                    {coin.price_change_percentage_1h_in_currency ? `${coin.price_change_percentage_1h_in_currency.toFixed(1)}%` : '-'}
+                    {formatPercent(coin.price_change_percentage_1h_in_currency)}
                   </div>
                 </td>
                 <td className="p-1">
                   <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_24h)}`}>
-                    {coin.price_change_percentage_24h ? `${coin.price_change_percentage_24h.toFixed(1)}%` : '-'}
+                    {formatPercent(coin.price_change_percentage_24h)}
                   </div>
                 </td>
                 <td className="p-1">
                   <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_7d_in_currency)}`}>
-                    {coin.price_change_percentage_7d_in_currency ? `${coin.price_change_percentage_7d_in_currency.toFixed(1)}%` : '-'}
+                    {formatPercent(coin.price_change_percentage_7d_in_currency)}
                   </div>
                 </td>
                 <td className="p-1">
                   <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_30d_in_currency)}`}>
-                    {coin.price_change_percentage_30d_in_currency ? `${coin.price_change_percentage_30d_in_currency.toFixed(1)}%` : '-'}
+                    {formatPercent(coin.price_change_percentage_30d_in_currency)}
                   </div>
                 </td>
                 <td className="p-1">
                   <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_1y_in_currency)}`}>
-                    {coin.price_change_percentage_1y_in_currency ? `${coin.price_change_percentage_1y_in_currency.toFixed(1)}%` : '-'}
+                    {formatPercent(coin.price_change_percentage_1y_in_currency)}
                   </div>
                 </td>
 
