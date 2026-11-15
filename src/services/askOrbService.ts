@@ -1,24 +1,23 @@
 import { CryptoCoin } from '../types/crypto';
 
 let orbHistory: {role: 'user'|'assistant', text: string}[] = [];
-function getLastCoinFromHistory(): string {
+
+function getLastCoinFromHistory(coins: CryptoCoin[]): CryptoCoin | null {
   for(let i=orbHistory.length-1;i>=0;i--){
     const t=orbHistory[i].text.toLowerCase();
-    const m=t.match(/\b(btc|eth|sol|usd1|usdt|bnb|xrp|doge|trx|ada|avax)\b/);
-    if(m) return m[0];
+    for(const c of coins){
+      if(t.includes(c.symbol.toLowerCase()) || t.includes(c.name.toLowerCase()) || t.includes(c.id.toLowerCase())){
+        return c;
+      }
+    }
   }
-  return '';
+  return null;
 }
 
 export function getOrbHistory(){ return orbHistory; }
 export function clearOrbHistory(){ orbHistory = []; }
 
-export interface ChatMessage {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  timestamp: number;
-}
+export interface ChatMessage { id: string; sender: 'user' | 'assistant'; text: string; timestamp: number; }
 
 function formatCompact(val?: number): string {
   if (!val) return '0';
@@ -28,162 +27,74 @@ function formatCompact(val?: number): string {
   return `$${val.toLocaleString()}`;
 }
 
-export async function askOrbAssistant(
-  question: string,
-  coins: CryptoCoin[],
-  _extHistory?: {role:string,text:string}[]
-): Promise<string> {
+export async function askOrbAssistant(question: string, coins: CryptoCoin[], _extHistory?: {role:string,text:string}[]): Promise<string> {
   const cleanQ = question.trim();
-
-  if (!cleanQ) {
-    return 'Please enter a question about any cryptocurrency or market trend.\nCheck out our quick suggestions above for instant answers.\nWe track the Top 100 coins in real time.\nNot financial advice.';
-  }
+  if (!cleanQ) return 'Please enter a question about any cryptocurrency.\nNot financial advice.';
 
   const lq = cleanQ.toLowerCase();
+  const greetings = ['hi','hey','hello','yo','sup','howdy','hey orb','hi orb'];
+  if (greetings.includes(lq)) return "Hi! I'm Orb, your live crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nNot financial advice.";
+  if (lq.includes('how are you') || lq.includes('how r u')) return "I'm doing great! Which coin would you like to know about?\nNot financial advice.";
 
-  // ---- Short-circuit greetings: never hit the AI API ----
-  const greetings = ['hi', 'hey', 'hello', 'yo', 'sup', 'howdy', 'hey orb', 'hi orb'];
-  if (greetings.includes(lq)) {
-    return "Hi! I'm Orb, your live crypto AI assistant.\nAsk me about any coin, market movers, or 24h stats.\nNot financial advice.";
-  }
-  if (lq.includes('how are you') || lq.includes('how r u') || lq.includes('how are u')) {
-    return "I'm doing great, thanks for asking! I'm Orb, your crypto assistant.\nWhich coin would you like to know about?\nNot financial advice.";
+  const lastCoinObj = getLastCoinFromHistory(coins);
+  const lastCoinSymbol = lastCoinObj?.symbol || '';
+
+  // Try to answer monthly/weekly directly from local data FIRST (no AI needed)
+  const wantsMonthly = lq.includes('monthly') || lq.includes('30d') || lq.includes('30 day') || lq.includes('month');
+  const wantsWeekly = lq.includes('weekly') || lq.includes('7d') || lq.includes('7 day') || lq.includes('week');
+  const wantsYearly = lq.includes('yearly') || lq.includes('1y') || lq.includes('365d') || lq.includes('year');
+
+  let targetCoinForChange: CryptoCoin | undefined = coins.find(c => {
+    const sym = c.symbol.toLowerCase(); const name = c.name.toLowerCase();
+    return lq.includes(sym) || lq.includes(name);
+  });
+  if(!targetCoinForChange && lq.includes('its') || lq.includes('it ') || lq.includes('that coin')){
+    targetCoinForChange = lastCoinObj || undefined;
   }
 
-  // ---- Server call (Gemini / Groq) ----
+  if(targetCoinForChange && (wantsMonthly || wantsWeekly || wantsYearly)){
+    const c = targetCoinForChange;
+    const change7 = (c as any).price_change_percentage_7d_in_currency;
+    const change30 = (c as any).price_change_percentage_30d_in_currency;
+    const change1y = (c as any).price_change_percentage_1y_in_currency;
+    if(wantsWeekly && change7 !== undefined) return `${c.name} (${c.symbol.toUpperCase()}) weekly change: ${change7?.toFixed(2)}%. Price $${c.current_price?.toLocaleString()}. 24h ${c.price_change_percentage_24h?.toFixed(2)}%.\nMarket cap rank #${c.market_cap_rank}.\nNot financial advice.`;
+    if(wantsMonthly && change30 !== undefined) return `${c.name} (${c.symbol.toUpperCase()}) monthly change: ${change30?.toFixed(2)}%. Price $${c.current_price?.toLocaleString()}. 24h ${c.price_change_percentage_24h?.toFixed(2)}%.\nMarket cap rank #${c.market_cap_rank}.\nNot financial advice.`;
+    if(wantsYearly && change1y !== undefined) return `${c.name} (${c.symbol.toUpperCase()}) yearly change: ${change1y?.toFixed(2)}%. Price $${c.current_price?.toLocaleString()}.\nMarket cap rank #${c.market_cap_rank}.\nNot financial advice.`;
+  }
+
   try {
     let qForApi = cleanQ;
-    const lastCoin = getLastCoinFromHistory();
-    if(true && /\b(its|it|that coin|monthly|yearly)\b/i.test(cleanQ) && !cleanQ.toLowerCase().includes(lastCoin)){
-      qForApi = `${lastCoin} ${cleanQ}`;
+    if(lastCoinSymbol && /\b(its|it|that coin)\b/i.test(cleanQ) && !lq.includes(lastCoinSymbol.toLowerCase())){
+      qForApi = `${lastCoinSymbol} ${cleanQ}`;
     }
     const hist = _extHistory || orbHistory.slice(-5);
     const res = await fetch('/api/ask-orb', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: qForApi, coins, history: hist }),
+      body: JSON.stringify({ question: qForApi, coins, history: hist, lastCoin: lastCoinSymbol }),
     });
-
     if (res.ok) {
       const data = await res.json();
-      if (data && typeof data.text === 'string' && data.text.trim()) {
+      if (data?.text?.trim()) {
         orbHistory.push({role:'user', text: cleanQ});
         orbHistory.push({role:'assistant', text: data.text.trim()});
         if(orbHistory.length>10) orbHistory=orbHistory.slice(-10);
         const t = data.text.trim();
-        // Reject error strings so we fall through to local fallback
-        if (!/busy|timeout|aborted|error|high demand|not available/i.test(t.slice(0, 50))) {
-          return t;
-        }
+        if (!/busy|timeout|aborted|high demand|not available/i.test(t.slice(0, 80))) return t;
       }
     }
-  } catch (err) {
-    console.warn('AI unavailable, using local CoinGecko fallback.');
-  }
+  } catch (err) { console.warn('AI unavailable, using local fallback'); }
 
-  // ---- Local fallback (uses coins already loaded in browser) ----
   const btc = coins.find(c => c.symbol.toLowerCase() === 'btc') || coins[0];
-  const eth = coins.find(c => c.symbol.toLowerCase() === 'eth') || coins[1];
-
-  const sortedByChange = [...coins].sort(
-    (a, b) => (b.price_change_percentage_24h ?? 0) - (a.price_change_percentage_24h ?? 0)
-  );
+  const sortedByChange = [...coins].sort((a, b) => (b.price_change_percentage_24h ?? 0) - (a.price_change_percentage_24h ?? 0));
   const topGainers = sortedByChange.slice(0, 3);
-  const topLosers = sortedByChange.slice(-3).reverse();
-  const totalMarketCap = coins.reduce((acc, c) => acc + (c.market_cap || 0), 0);
-  const avgChange =
-    coins.reduce((acc, c) => acc + (c.price_change_percentage_24h || 0), 0) /
-    (coins.length || 1);
+  const avgChange = coins.reduce((acc, c) => acc + (c.price_change_percentage_24h || 0), 0) / (coins.length || 1);
+  const matchedCoin = targetCoinForChange || coins.find(c => lq.includes(c.symbol.toLowerCase()) || lq.includes(c.name.toLowerCase()));
 
-  const matchedCoin = coins.find(c => {
-    const sym = (c.symbol || '').toLowerCase();
-    const name = (c.name || '').toLowerCase();
-    const id = (c.id || '').toLowerCase();
-    if (sym.length >= 2 && lq.includes(sym)) return true;
-    if (name.length >= 3 && lq.includes(name)) return true;
-    if (id.length >= 3 && lq.includes(id)) return true;
-    return false;
-  });
-
-  return generateLiveResponse(cleanQ, {
-    coins,
-    btc,
-    eth,
-    topGainers,
-    topLosers,
-    totalMarketCap,
-    avgChange,
-    matchedCoin,
-  });
-}
-
-interface MarketContext {
-  coins: CryptoCoin[];
-  btc?: CryptoCoin;
-  eth?: CryptoCoin;
-  topGainers: CryptoCoin[];
-  topLosers: CryptoCoin[];
-  totalMarketCap: number;
-  avgChange: number;
-  matchedCoin?: CryptoCoin;
-}
-
-function generateLiveResponse(question: string, ctx: MarketContext): string {
-  // Check if question asks for monthly/yearly and we have history coin
-  const lastCoin = ctx.matchedCoin;
-  const qLower = question.toLowerCase();
-  const wantsMonthly = qLower.includes('monthly') || qLower.includes('30d') || qLower.includes('30 day');
-  const wantsYearly = qLower.includes('yearly') || qLower.includes('1y') || qLower.includes('365d');
-  const wantsWeekly = qLower.includes('weekly') || qLower.includes('7d') || qLower.includes('7 day');
-
-  if(lastCoin && (wantsMonthly || wantsYearly || wantsWeekly)){
-    const coin = lastCoin;
-    // CoinGecko free API often only has 24h, so explain
-    return `${coin.name} (${coin.symbol.toUpperCase()}) is at ${coin.current_price?.toLocaleString()} now. 24h: ${coin.price_change_percentage_24h?.toFixed(2)}% | 7d data: ${(coin as any).price_change_percentage_7d_in_currency?.toFixed(2) || 'N/A - use chart'} | 30d requires Pro API. Current market cap ${coin.market_cap?.toLocaleString()} rank #${coin.market_cap_rank}.\nNot financial advice.`;
+  if (matchedCoin) {
+    const isUp = (matchedCoin.price_change_percentage_24h ?? 0) >= 0;
+    return `${matchedCoin.name} (${matchedCoin.symbol.toUpperCase()}) is trading at $${matchedCoin.current_price?.toLocaleString()} with 24h ${isUp ? '+' : ''}${matchedCoin.price_change_percentage_24h?.toFixed(2)}%.\nRank #${matchedCoin.market_cap_rank} cap ${formatCompact(matchedCoin.market_cap)}. Volume ${formatCompact(matchedCoin.total_volume)}.\nRange $${matchedCoin.low_24h?.toLocaleString()} - $${matchedCoin.high_24h?.toLocaleString()}.\nNot financial advice.`;
   }
 
-  const q = question.toLowerCase();
-
-  if (q.includes('top gainer') || q.includes('gainers') || q.includes('who is up') || q.includes('best coin')) {
-    const g1 = ctx.topGainers[0];
-    const g2 = ctx.topGainers[1];
-    const g3 = ctx.topGainers[2];
-    const line1 = `Today's top gainers are ${g1?.name || 'Token'} (+${g1?.price_change_percentage_24h?.toFixed(1) || '0'}%), ${g2?.name || 'Token'} (+${g2?.price_change_percentage_24h?.toFixed(1) || '0'}%), and ${g3?.name || 'Token'} (+${g3?.price_change_percentage_24h?.toFixed(1) || '0'}%).`;
-    const line2 = `These coins lead market momentum while the Top 100 average 24h change is ${ctx.avgChange >= 0 ? '+' : ''}${ctx.avgChange.toFixed(2)}%.`;
-    const line3 = `Their bubbles glow bright green on Orbix reflecting strong upward buy volume.`;
-    return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
-  }
-
-  if (q.includes('btc') || q.includes('bitcoin')) {
-    const btc = ctx.btc;
-    const btcChange = btc?.price_change_percentage_24h ?? 0;
-    const isDown = btcChange < 0;
-    const line1 = `Bitcoin (BTC) is currently trading at $${btc?.current_price?.toLocaleString() || 'N/A'}, moving ${btcChange >= 0 ? '+' : ''}${btcChange.toFixed(2)}% over the last 24 hours.`;
-    const line2 = `Trading has ranged between a 24-hour low of $${btc?.low_24h?.toLocaleString() || 'N/A'} and high of $${btc?.high_24h?.toLocaleString() || 'N/A'}.`;
-    const line3 = isDown
-      ? `Broader market liquidity contractions and profit-taking at resistance levels are driving short-term pressure.`
-      : `Sustained spot demand and steady exchange inflows are supporting today's positive price momentum.`;
-    return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
-  }
-
-  if (q.includes('market cap') || q.includes('market capitalization') || q.includes('what is cap')) {
-    const line1 = `Market capitalization represents a cryptocurrency's current price multiplied by its total circulating supply.`;
-    const line2 = `The combined market cap of the Top 100 coins currently stands at ${formatCompact(ctx.totalMarketCap)}.`;
-    const line3 = `On Orbix, bubble sizes directly scale with market cap so higher-valued coins appear larger.`;
-    return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
-  }
-
-  if (ctx.matchedCoin) {
-    const coin = ctx.matchedCoin;
-    const isUp = (coin.price_change_percentage_24h ?? 0) >= 0;
-    const line1 = `${coin.name} (${coin.symbol.toUpperCase()}) is trading at $${coin.current_price?.toLocaleString() || '0'} with a 24-hour change of ${isUp ? '+' : ''}${coin.price_change_percentage_24h?.toFixed(2) || '0'}%.`;
-    const line2 = `It holds market cap rank #${coin.market_cap_rank || '—'} with a total market valuation of ${formatCompact(coin.market_cap)}.`;
-    const line3 = `Its 24-hour trading volume is ${formatCompact(coin.total_volume)}, with today's range between $${coin.low_24h?.toLocaleString() || 'N/A'} and $${coin.high_24h?.toLocaleString() || 'N/A'}.`;
-    return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
-  }
-
-  const line1 = `The Top 100 cryptocurrency market currently averages a ${ctx.avgChange >= 0 ? '+' : ''}${ctx.avgChange.toFixed(2)}% move across the board today.`;
-  const line2 = `Bitcoin (BTC) anchors the market at $${ctx.btc?.current_price?.toLocaleString() || 'N/A'}, while ${ctx.topGainers[0]?.name || 'gainers'} leads top momentum.`;
-  const line3 = `Total 24-hour tracked volume stands at ${formatCompact(ctx.coins.reduce((a, c) => a + (c.total_volume || 0), 0))}.`;
-  return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
+  return `Top 100 avg 24h: ${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%. BTC $${btc?.current_price?.toLocaleString()}.\nTop gainer ${topGainers[0]?.name} +${topGainers[0]?.price_change_percentage_24h?.toFixed(1)}%.\nTotal volume ${formatCompact(coins.reduce((a,c)=>a+(c.total_volume||0),0))}.\nNot financial advice.`;
 }
