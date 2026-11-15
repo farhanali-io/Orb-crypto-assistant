@@ -1,87 +1,148 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CryptoCoin } from '../types/crypto';
-import { formatCompactNumber } from '../services/cryptoApi';
 
 type TF = '24H'|'7D'|'1M'|'3M'|'1Y'|'MAX';
 const TF_MAP: Record<TF,string> = {'24H':'1','7D':'7','1M':'30','3M':'90','1Y':'365','MAX':'max'};
 
-function smooth(pts:[number,number][]){
-  if(pts.length<2) return '';
-  let d=`M${pts[0][0]} ${pts[0][1]}`;
-  for(let i=0;i<pts.length-1;i++){
-    const p0=pts[i-1]||pts[0], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
-    d+=` C${p1[0]+(p2[0]-p0[0])/6} ${p1[1]+(p2[1]-p0[1])/6}, ${p2[0]-(p3[0]-p1[0])/6} ${p2[1]-(p3[1]-p1[1])/6}, ${p2[0]} ${p2[1]}`;
-  }
-  return d;
-}
-
 export const CoinDetailPage: React.FC<{coin:CryptoCoin; onBack:()=>void; favorites:string[]; onToggleFavorite:(id:string)=>void}> = ({ coin, onBack }) => {
-  const [tf, setTf] = useState<TF>('MAX');
-  const [prices, setPrices] = useState<number[][]>([]);
+  const [tf, setTf] = useState<TF>('1M');
+  const [ohlc, setOhlc] = useState<number[][]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const change = coin.price_change_percentage_24h ?? -0.31;
-  const isUp = change>=0;
-  const line = isUp ? '#FFFFFF' : '#FF6B6B';
+  const isUp = change >= 0;
 
   useEffect(()=>{
-    fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${TF_MAP[tf]}`)
+    fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/ohlc?vs_currency=usd&days=${TF_MAP[tf]}`)
       .then(r=>r.json()).then(d=>{
-        let vals = (d.prices||[]).map((v:any,i:number,a:any[])=>{
-          const w = a.slice(Math.max(0,i-3), i+4);
-          return [v[0], w.reduce((s:any,c:any)=>s+c[1],0)/w.length];
-        });
-        setPrices(vals);
-      }).catch(()=>{
-        const b=coin.current_price||1819.47;
-        setPrices(Array.from({length:90},(_,i)=>[i, b*(1+Math.sin(i/16)*0.06)]) as any);
-      });
-  },[tf, coin.id, coin.current_price]);
+        if(Array.isArray(d) && d.length>2) setOhlc(d);
+        else {
+          // fallback to price line -> convert to fake ohlc
+          fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${TF_MAP[tf]}`)
+            .then(r=>r.json()).then(m=>{
+              const p = (m.prices||[]).slice(-120);
+              const o = p.map((v:any,i:number)=>[v[0], v[1]*0.998, v[1]*1.002, v[1]*0.996, v[1]]);
+              setOhlc(o);
+            });
+        }
+      }).catch(()=>{});
+  },[tf, coin.id]);
 
-  const {pathD, areaD} = useMemo(()=>{
-    if(!prices.length) return {pathD:'', areaD:''};
-    const vals=prices.map(p=>p[1]);
-    const min=Math.min(...vals), max=Math.max(...vals);
-    const pad=(max-min)*0.25||1, vMin=min-pad, vMax=max+pad, range=vMax-vMin;
-    const W=1000,H=300;
-    const pts:[number,number][]=vals.map((v,i)=>[(i/(vals.length-1))*W, H-((v-vMin)/range)*H]);
-    const p=smooth(pts);
-    return {pathD:p, areaD:`${p} L${W} ${H} L0 ${H} Z`};
-  },[prices]);
+  // TradingView draw
+  useEffect(()=>{
+    const canvas = canvasRef.current;
+    if(!canvas || !ohlc.length) return;
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return;
+    const dpr = window.devicePixelRatio||1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width*dpr;
+    canvas.height = rect.height*dpr;
+    ctx.scale(dpr,dpr);
+    const W = rect.width, H = rect.height;
+    const PAD_L = 10, PAD_R = 60, PAD_T = 10, PAD_B = 24;
+    const chartW = W - PAD_L - PAD_R;
+    const chartH = H - PAD_T - PAD_B;
+
+    ctx.clearRect(0,0,W,H);
+    // bg
+    ctx.fillStyle = '#0A0A0C';
+    ctx.fillRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = '#1A1A20';
+    ctx.lineWidth = 0.5;
+    for(let i=0;i<4;i++){
+      const y = PAD_T + (chartH/4)*i;
+      ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L+chartW, y); ctx.stroke();
+    }
+
+    const highs = ohlc.map(o=>o[2]);
+    const lows = ohlc.map(o=>o[3]);
+    const min = Math.min(...lows);
+    const max = Math.max(...highs);
+    const range = (max-min) || 1;
+    const getY = (v:number)=> PAD_T + chartH - ((v-min)/range)*chartH;
+    const getX = (i:number)=> PAD_L + (i/(ohlc.length-1))*chartW;
+
+    // candles
+    const candleW = Math.max(2, chartW/ohlc.length*0.6);
+    ohlc.forEach((c,i)=>{
+      const [ , open, high, low, close ] = c;
+      const x = getX(i);
+      const yOpen = getY(open);
+      const yClose = getY(close);
+      const yHigh = getY(high);
+      const yLow = getY(low);
+      const green = close >= open;
+      ctx.strokeStyle = green ? '#00FF88' : '#FF3B3B';
+      ctx.fillStyle = green ? '#00FF88' : '#FF3B3B';
+      // wick
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, yHigh); ctx.lineTo(x, yLow); ctx.stroke();
+      // body
+      const bodyH = Math.max(2, Math.abs(yOpen-yClose));
+      const bodyY = Math.min(yOpen, yClose);
+      ctx.fillRect(x-candleW/2, bodyY, candleW, bodyH||2);
+    });
+
+    // price scale right (TradingView style)
+    ctx.fillStyle = '#2A2A33';
+    ctx.fillRect(W-PAD_R, 0, PAD_R, H);
+    ctx.fillStyle = '#8A8A9A';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for(let i=0;i<5;i++){
+      const v = min + (range/4)*i;
+      const y = PAD_T + chartH - (chartH/4)*i;
+      ctx.fillText(v.toFixed(v<1?4:2), W-8, y+3);
+    }
+  },[ohlc]);
 
   return (
-    <div className="w-full min-h-screen bg-[#08080A] text-white px-4 pb-[180px]">
-      <div className="pt-4 flex items-start justify-between">
-        <div className="flex gap-3">
-          <img src={coin.image} className="w-10 h-10 rounded-full bg-[#1A1A20] p-1" alt=""/>
-          <div>
-            <div className="text-[20px] font-black leading-none">{coin.symbol.toUpperCase()} <span className="text-[13px] font-medium text-[#6A6A78]">{coin.name}</span></div>
-            <div className="mt-2 text-[30px] font-bold leading-none">${coin.current_price.toLocaleString()}</div>
-            <div className={`mt-2 inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${isUp?'bg-[#00FF88]/10 text-[#00FF88] border-[#00FF88]/20':'bg-[#FF5A5A]/10 text-[#FF5A5A] border-[#FF5A5A]/20'}`}>{change.toFixed(2)}%</div>
+    <div className="w-full min-h-screen bg-[#08080A] text-white pb-[160px] font-sans">
+      {/* Header - NO duplicate Orbix bar, only coin */}
+      <div className="px-5 pt-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img src={coin.image} className="w-8 h-8 rounded-full" alt=""/>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[17px] font-bold tracking-tight">{coin.symbol.toUpperCase()}</span>
+            <span className="text-[12px] text-[#6B6B7A]">/ USD</span>
+            <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-bold ${isUp?'bg-[#00FF88]/15 text-[#00FF88]':'bg-[#FF3B3B]/15 text-[#FF3B3B]'}`}>{isUp?'+':''}{change.toFixed(2)}%</span>
           </div>
         </div>
-        <button onClick={onBack} className="w-9 h-9 rounded-full bg-[#15151A] border border-[#23232A] text-[#888]">✕</button>
+        <button onClick={onBack} className="w-8 h-8 rounded-full bg-[#15151A] border border-[#222] text-[#666]">✕</button>
       </div>
 
-      <div className="relative mt-6 h-[360px] rounded-[28px] bg-[#101014] border border-[#1C1C20] overflow-hidden">
-        <svg viewBox="0 0 1000 300" preserveAspectRatio="none" className="absolute inset-0 w-full h-full p-3">
-          <defs><linearGradient id="f2" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={line} stopOpacity="0.22"/><stop offset="100%" stopColor={line} stopOpacity="0"/></linearGradient></defs>
-          <path d={areaD} fill="url(#f2)"/>
-          <path d={pathD} fill="none" stroke={line} strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-        <div className="absolute bottom-3 left-4 text-[10px] tracking-widest text-[#444] font-mono">{tf} • {isUp?'BULLISH':'BEARISH'} • LIVE</div>
+      <div className="px-5 mt-3">
+        <div className="text-[34px] font-bold tracking-tight leading-none">${coin.current_price.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+        <div className="mt-1 text-[11px] text-[#5A5A6A] font-mono tracking-widest">BINANCE • {tf} • {isUp?'BULL':'BEAR'}</div>
       </div>
 
-      <div className="mt-6 flex justify-center">
-        <div className="flex gap-1 p-1.5 rounded-full bg-[#15151C] border border-[#222] w-full max-w-[360px]">
+      {/* TradingView Chart */}
+      <div className="mt-4 mx-3 rounded-[16px] overflow-hidden border border-[#1E1E27] bg-[#0A0A0C]">
+        <canvas ref={canvasRef} className="w-full h-[360px] block" style={{height:360}}/>
+        <div className="h-[28px] bg-[#0F0F12] border-t border-[#1A1A20] flex items-center px-3 text-[10px] font-mono text-[#555] justify-between">
+          <span>VOL • {coin.total_volume ? (coin.total_volume/1e9).toFixed(2)+'B' : '-'}</span>
+          <span className="text-[#00FF88]">O {ohlc[0]?.[1]?.toFixed(2)} H {ohlc[0]?.[2]?.toFixed(2)} L {ohlc[0]?.[3]?.toFixed(2)} C {ohlc[0]?.[4]?.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {/* Filters - All 6, TradingView style */}
+      <div className="mt-4 px-4 flex justify-center">
+        <div className="inline-flex bg-[#111117] border border-[#1E1E27] rounded-full p-1 gap-1">
           {(Object.keys(TF_MAP) as TF[]).map(t=>(
-            <button key={t} onClick={()=>setTf(t)} className={`flex-1 h-[38px] rounded-full text-[12px] font-bold ${tf===t?'bg-white text-black':'text-[#6A6A78]'}`}>{t}</button>
+            <button key={t} onClick={()=>setTf(t)} className={`px-4 h-[32px] rounded-full text-[12px] font-bold tracking-wide transition ${tf===t?'bg-white text-black':'text-[#6A6A78] hover:text-white'}`}>{t}</button>
           ))}
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="rounded-[20px] bg-[#111116] border border-[#1E1E27] p-4"><div className="text-[10px] text-[#666] tracking-widest">MARKET CAP</div><div className="mt-2 font-mono font-bold">{formatCompactNumber(coin.market_cap)}</div></div>
-        <div className="rounded-[20px] bg-[#111116] border border-[#1E1E27] p-4"><div className="text-[10px] text-[#666] tracking-widest">VOLUME (24H)</div><div className="mt-2 font-mono font-bold">{formatCompactNumber(coin.total_volume)}</div></div>
+      {/* Premium stats - clean rows like TradingView, not cards */}
+      <div className="mt-6 mx-4 rounded-[16px] bg-[#101014] border border-[#1E1E27] divide-y divide-[#1A1A20]">
+        <div className="flex justify-between p-4 text-[13px]"><span className="text-[#6A6A78]">Market Cap</span><span className="font-mono font-bold">${(coin.market_cap/1e9).toFixed(2)}B</span></div>
+        <div className="flex justify-between p-4 text-[13px]"><span className="text-[#6A6A78]">24h Volume</span><span className="font-mono font-bold">${(coin.total_volume/1e6).toFixed(1)}M</span></div>
+        <div className="flex justify-between p-4 text-[13px]"><span className="text-[#6A6A78]">Circulating</span><span className="font-mono font-bold">{(coin.circulating_supply/1e9).toFixed(2)}B {coin.symbol.toUpperCase()}</span></div>
+        <div className="flex justify-between p-4 text-[13px]"><span className="text-[#6A6A78]">Rank</span><span className="font-mono font-bold">#{coin.market_cap_rank}</span></div>
       </div>
     </div>
   );
