@@ -141,3 +141,4 @@ export const CoinDetail: React.FC<Props> = ({ coin, onBack, favorites, onToggleF
     </div>
   );
 };
+// force rebuild Mon Nov 16 12:56:28 AM PKT 2026
