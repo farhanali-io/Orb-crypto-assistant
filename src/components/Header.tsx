@@ -108,7 +108,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                 <input type="text" value={searchQuery} onChange={handleSearchChange} onFocus={() => setShowDropdown(true)}
                   placeholder="Search cryptocurrency..." className="w-full h-9 pl-9 pr-8 bg-[#111111] border border-[#222222] focus:border-[#383838] rounded-full text-xs text-white placeholder-neutral-500 focus:outline-none transition-all" />
-                {searchQuery && (<button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>)}
               </div>
               <SearchResults />
             </div>
