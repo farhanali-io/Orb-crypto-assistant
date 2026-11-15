@@ -30,25 +30,6 @@ export const CoinDetailPage: React.FC<Props> = ({ coin, onBack }) => {
   const isUp = change>=0;
   const line = isUp ? '#FFFFFF' : '#FF5A5A';
 
-  // Hide the duplicate Orbix bar from parent on mount
-  useEffect(()=>{
-    const style = document.createElement('style');
-    style.innerHTML = `
-      /* Hide the second Orbix bar you marked */
-      header + div:has(> div > img[src*="${coin.symbol}"]) { display:none !important; }
-    `;
-    document.head.appendChild(style);
-    // Brute hide second Orbix row
-    const els = document.querySelectorAll('div');
-    els.forEach(el=>{
-      if(el.textContent?.includes('Orbix') && el.querySelector('button') && el.innerHTML.includes('✕') && el.clientHeight < 60){
-        const parent = el.closest('div');
-        if(parent && parent !== document.body) (parent as HTMLElement).style.display='none';
-      }
-    });
-    return ()=>{ style.remove(); };
-  },[coin.symbol]);
-
   useEffect(()=>{
     fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${TF_MAP[tf]}`)
       .then(r=>r.json()).then(d=>{
@@ -77,9 +58,8 @@ export const CoinDetailPage: React.FC<Props> = ({ coin, onBack }) => {
   },[prices]);
 
   return (
-    <div className="w-full min-h-screen bg-[#08080A] text-white pb-[180px] -mt-[52px] pt-[52px]">
-      {/* ETH Header - Single line, no second bar */}
-      <div className="px-5 pt-3 flex items-center gap-3">
+    <div className="w-full min-h-screen bg-[#08080A] text-white pb-[180px]">
+      <div className="px-5 pt-4 flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-[#1A1A1F] border border-[#222] flex items-center justify-center">
           <img src={coin.image} className="w-6 h-6 rounded-full" alt=""/>
         </div>
@@ -94,7 +74,6 @@ export const CoinDetailPage: React.FC<Props> = ({ coin, onBack }) => {
         <button onClick={onBack} className="ml-auto w-8 h-8 rounded-full bg-[#15151A] border border-[#222] grid place-items-center text-[#666]">✕</button>
       </div>
 
-      {/* Chart - Premium Thick White/Red with soft fill */}
       <div className="relative w-full h-[340px] mt-5 px-3">
         <div className="relative w-full h-full rounded-[24px] bg-[#101014] border border-[#1C1C20] overflow-hidden">
           <svg viewBox="0 0 1000 300" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
@@ -111,16 +90,14 @@ export const CoinDetailPage: React.FC<Props> = ({ coin, onBack }) => {
         </div>
       </div>
 
-      {/* Filters - All 6 pill - centered */}
       <div className="mt-5 flex justify-center px-4">
         <div className="flex p-1.5 rounded-full bg-[#141419] border border-[#1E1E27] gap-1 overflow-x-auto no-scrollbar w-full max-w-[360px] justify-between">
           {(Object.keys(TF_MAP) as TF[]).map(t=>(
             <button key={t} onClick={()=>setTf(t)} className={`flex-1 min-w-[44px] h-[36px] rounded-full text-[12px] font-bold transition-all ${tf===t?'bg-white text-black shadow-[0_2px_12px_rgba(255,255,255,0.35)]':'text-[#5A5A68] hover:text-white'}`}>{t}</button>
-          )))}
+          ))}
         </div>
       </div>
 
-      {/* Stats - Clean, no overlap */}
       <div className="px-4 mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-[18px] bg-[#101014] border border-[#1E1E27] p-4"><div className="text-[10px] tracking-widest text-[#5A5A68]">MARKET CAP</div><div className="mt-2 text-[16px] font-bold font-mono">{formatCompactNumber(coin.market_cap)}</div><div className="mt-1 text-[11px] text-[#00FF88]">+2.1% ↗</div></div>
         <div className="rounded-[18px] bg-[#101014] border border-[#1E1E27] p-4"><div className="text-[10px] tracking-widest text-[#5A5A68]">VOLUME (24H)</div><div className="mt-2 text-[16px] font-bold font-mono">{formatCompactNumber(coin.total_volume)}</div><div className="mt-1 text-[11px] text-[#6A6A78]">24h trading</div></div>
