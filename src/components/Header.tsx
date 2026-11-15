@@ -117,12 +117,12 @@ export const Header: React.FC<HeaderProps> = ({
               <button onClick={() => onNavigate('#/about')} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currentRoute === 'about' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white'}`}>About</button>
               <button onClick={() => onNavigate('#/contact')} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currentRoute === 'contact' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white'}`}>Contact</button>
               <div className="w-px h-4 bg-[#222] mx-1"></div>
-              {isHeatmap && <ThemeToggle theme={theme} />}
+              {isHeatmap && mobileTab !== 'tables' && <ThemeToggle theme={theme} />}
             </div>
 
             <div className="flex md:hidden items-center gap-2 ml-auto">
               <button onClick={() => setMobileSearchOpen(true)} className="p-2 rounded-lg bg-[#111111] text-neutral-300"><Search className="w-4 h-4" /></button>
-              {isHeatmap && <ThemeToggle theme={theme} />}
+              {isHeatmap && mobileTab !== 'tables' && <ThemeToggle theme={theme} />}
             </div>
           </>
         )}
