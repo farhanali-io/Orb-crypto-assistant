@@ -1,25 +1,16 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
 import React, { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { CryptoCoin, TimeFrame, ColorTheme } from './types/crypto';
 import { initInkBleed } from './modules/inkBleed';
 import { getFullTop100Coins } from './data/top100Coins';
 import { fetchTop100Coins, getFavorites, toggleFavorite } from './services/cryptoApi';
 import { Header } from './components/Header';
-import { LandingPage } from './components/LandingPage';
 import { BubbleCanvas } from './components/BubbleCanvas';
 import { MarketTable } from './components/MarketTable';
 import { CoinDetailPage } from './components/CoinDetailPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { MobileBottomBar, MobileTab } from './components/MobileBottomBar';
-import { DustBackground } from './components/DustBackground';
 import { CoinRightPanel } from './components/CoinRightPanel';
-import { TimeFilterBar } from './components/TimeFilterBar';
-import { AskOrbChat } from './components/AskOrbChat';
-import { BubbleSkeleton, TableSkeleton } from './components/SkeletonLoader';
 
 type CurrentRoute = 'heatmap' | 'about' | 'contact' | 'coin';
 
@@ -31,20 +22,16 @@ const getThemeSnapshot = (): ColorTheme => {
 export default function App() {
   const [coins, setCoins] = useState<CryptoCoin[]>(() => getFullTop100Coins());
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('day');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCoin, setSelectedCoin] = useState<CryptoCoin | null>(null);
   const [panelCoin, setPanelCoin] = useState<CryptoCoin | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [currentRoute, setCurrentRoute] = useState<CurrentRoute>('heatmap');
   const [mobileTab, setMobileTab] = useState<MobileTab>('bubbles');
   const [favorites, setFavorites] = useState<string[]>(() => getFavorites());
-  const [isAskOrbOpen, setIsAskOrbOpen] = useState(false);
   const [hasLaunched, setHasLaunched] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  // Read the current theme from <html data-theme>, which the ink module owns.
   const theme = useSyncExternalStore<ColorTheme>(
     useCallback((notify: () => void) => {
       const observer = new MutationObserver(notify);
@@ -57,14 +44,8 @@ export default function App() {
 
   const inkRef = useRef<ReturnType<typeof initInkBleed> | null>(null);
   useEffect(() => {
-    inkRef.current = initInkBleed({
-      toggleSelector: '.theme-toggle-btn',
-      storageKey: 'orbix_theme',
-    });
-    return () => {
-      inkRef.current?.destroy();
-      inkRef.current = null;
-    };
+    inkRef.current = initInkBleed({ toggleSelector: '.theme-toggle-btn', storageKey: 'orbix_theme' });
+    return () => { inkRef.current?.destroy(); inkRef.current = null; };
   }, []);
 
   useEffect(() => {
@@ -77,14 +58,12 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash || '#/';
-      if (hash === '#/about') {
-        setCurrentRoute('about'); setSelectedCoin(null); window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (hash === '#/contact') {
-        setCurrentRoute('contact'); setSelectedCoin(null); window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (hash.startsWith('#/coin/')) {
+      if (hash === '#/about') { setCurrentRoute('about'); setSelectedCoin(null); }
+      else if (hash === '#/contact') { setCurrentRoute('contact'); setSelectedCoin(null); }
+      else if (hash.startsWith('#/coin/')) {
         const coinId = hash.replace('#/coin/', '').trim();
         const found = coins.find(c => c.id === coinId || c.symbol.toLowerCase() === coinId.toLowerCase());
-        if (found) { setSelectedCoin(found); setCurrentRoute('coin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        if (found) { setSelectedCoin(found); setCurrentRoute('coin'); }
       } else { setCurrentRoute('heatmap'); setSelectedCoin(null); }
     };
     handleHashChange();
@@ -95,7 +74,7 @@ export default function App() {
   const handleOpenRightPanel = useCallback((coin: CryptoCoin) => { setPanelCoin(coin); setIsPanelOpen(true); }, []);
   const handleOpenFullCoinPage = useCallback((coin: CryptoCoin) => {
     setSelectedCoin(coin); setIsPanelOpen(false); setCurrentRoute('coin');
-    window.location.hash = `#/coin/${coin.id}`; window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.location.hash = `#/coin/${coin.id}`;
   }, []);
   const handleBackToHeatmap = useCallback(() => {
     setSelectedCoin(null); setIsPanelOpen(false); setCurrentRoute('heatmap'); window.location.hash = '#/';
@@ -105,104 +84,39 @@ export default function App() {
   const loadData = useCallback(async (force = false) => {
     try {
       const res = await fetchTop100Coins(force);
-      setIsLoading(false); setLastUpdated(new Date());
+      setIsLoading(false);
       if (res.coins && res.coins.length > 0) {
         setCoins(res.coins);
         setSelectedCoin(prev => prev ? (res.coins.find(c => c.id === prev.id) || prev) : null);
       }
-    } catch (e) { console.error('Failed to update crypto prices', e); setIsLoading(false); setLastUpdated(new Date()); }
+    } catch (e) { setIsLoading(false); }
   }, []);
 
   useEffect(() => { loadData(false); }, [loadData]);
   useEffect(() => { const interval = setInterval(() => loadData(false), 60000); return () => clearInterval(interval); }, [loadData]);
 
-  const bubbleCoins = useMemo(() => {
-      if (timeFrame === 'favorites') {
-        return coins.filter(c => favorites.includes(c.id));
-      }
-      return coins;
-    }, [coins, timeFrame, favorites]);
-
-    const filteredCoins = useMemo(() => {
-    let result = coins;
-    
-    // If on Favorites tab, filter to only favorites (Works for Table View on desktop)
-    if (timeFrame === 'favorites') {
-      result = result.filter(c => favorites.includes(c.id));
-    }
-    
-    // Apply search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
-      );
-    }
-    
-    return result;
-  }, [coins, searchQuery, timeFrame, favorites]);
-
-  if (!hasLaunched) {
-    return <LandingPage onLaunch={() => setHasLaunched(true)} />;
+  // If coin page, show ONLY coin page (no duplicate Orbix bars)
+  if (currentRoute === 'coin' && selectedCoin) {
+    return (
+      <div className="min-h-screen bg-[#08080A]">
+        <Header searchQuery="" setSearchQuery={()=>{}} onNavigate={()=>{}} currentRoute="heatmap" theme={theme} />
+        <CoinDetailPage coin={selectedCoin} onBack={handleBackToHeatmap} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+        <MobileBottomBar activeTab="bubbles" onTabChange={()=>{}} onAskOrb={()=>{}} />
+      </div>
+    );
   }
 
   return (
-    <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-0">
-      <DustBackground />
-      <div className="relative z-20">
-        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab} onTabChange={setMobileTab}
-          coins={coins}
-          onSelectCoin={handleOpenFullCoinPage} />
-      </div>
-
-      <main className="relative z-10 w-full bg-transparent flex flex-col min-h-[calc(100vh-52px)]">
-        {currentRoute === 'about' && <AboutPage onBack={handleBackToHeatmap} />}
-        {currentRoute === 'contact' && <ContactPage onBack={handleBackToHeatmap} />}
-        {currentRoute === 'coin' && selectedCoin && (
-          <div className="w-full">
-            <CoinDetailPage coin={selectedCoin} onBack={handleBackToHeatmap} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
-          </div>
-        )}
-        {currentRoute === 'heatmap' && (
-          <div className="w-full bg-transparent flex flex-col">
-            {currentRoute === 'heatmap' && <div className={mobileTab === 'tables' ? 'hidden' : 'block'}><TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} /></div>}
-            <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden' : 'block'}`}>
-              {isLoading ? <BubbleSkeleton /> : <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={(coin) => { if (window.innerWidth < 768) { handleOpenFullCoinPage(coin); } else { handleOpenRightPanel(coin); } }} />}
-            </div>
-            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden' : 'flex flex-col pb-2'}`}>
-              {isLoading ? <TableSkeleton /> : <MarketTable coins={filteredCoins} onSelectCoin={(coin) => { if (window.innerWidth < 768) { handleOpenFullCoinPage(coin); } else { handleOpenRightPanel(coin); } }} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />}
-            </div>
-          </div>
-        )}
-      </main>
-
-      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 pb-24 md:pb-8 w-full relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
-          <div className="flex items-center justify-center md:justify-start gap-4 md:gap-6 text-[11px] font-mono flex-wrap">
-            <span className="text-white font-bold">© 2026 Orbix.</span>
-            <button onClick={()=>{window.location.hash='#/about'}} className="text-neutral-400 hover:text-white">About</button>
-            <button onClick={()=>{window.location.hash='#/contact'}} className="text-neutral-400 hover:text-white">Contact</button>
-            <a href="https://www.coingecko.com" target="_blank" rel="noopener" className="text-neutral-500 hover:text-emerald-400">Powered by CoinGecko</a>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-500">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Live</span>
-            <span>Last updated: {Math.floor((Date.now() - lastUpdated.getTime())/1000)}s ago</span>
-          </div>
-        </div>
-        <div className="hidden md:block text-[10px] text-neutral-600 font-mono text-center mt-4">No financial advice. Do your own research.</div>
-      </footer>
-
-
-      
-
-      <MobileBottomBar activeTab={mobileTab} onTabChange={setMobileTab} onNavigate={route => { window.location.hash = route; }} currentRoute={currentRoute} onOpenAskOrb={() => setIsAskOrbOpen(true)} isAskOrbOpen={isAskOrbOpen} />
-      {!isAskOrbOpen && (
-        <button onClick={() => setIsAskOrbOpen(true)} className="hidden md:flex fixed bottom-20 md:bottom-6 right-6 z-[200] items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#111111] hover:bg-[#181818] border border-[#2A2A2A] hover:border-[#00FF88]/40 shadow-[0_8px_30px_rgba(0,0,0,0.85)] transition-all hover:scale-105 active:scale-95 cursor-pointer group" style={{ boxShadow: '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 255, 136, 0.18)' }} title="Ask Orb - AI Assistant">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#00FF88] shadow-[0_0_8px_#00FF88] animate-pulse" /><span className="text-sm font-bold text-white tracking-wide group-hover:text-[#00FF88] transition-colors">Ask Orb</span>
-        </button>
+    <div className="min-h-screen bg-[#08080A] text-white">
+      <Header searchQuery="" setSearchQuery={()=>{}} onNavigate={(r)=>setCurrentRoute(r as any)} currentRoute={currentRoute} theme={theme} />
+      {currentRoute === 'about' ? <AboutPage/> : currentRoute === 'contact' ? <ContactPage/> : (
+        <>
+          <BubbleCanvas coins={coins} onCoinClick={handleOpenRightPanel} timeFrame={timeFrame} isLoading={isLoading} favorites={favorites} />
+          <MarketTable coins={coins} onCoinClick={handleOpenRightPanel} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+        </>
       )}
-      <AskOrbChat isOpen={isAskOrbOpen} onClose={() => setIsAskOrbOpen(false)} isMobile={isMobile} coins={coins} />
-      <CoinRightPanel coin={panelCoin} isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} onViewFullPage={handleOpenFullCoinPage} isFavorite={panelCoin ? favorites.includes(panelCoin.id) : false} onToggleFavorite={handleToggleFavorite} />
+      <CoinRightPanel coin={panelCoin} isOpen={isPanelOpen} onClose={()=>setIsPanelOpen(false)} onViewFullPage={handleOpenFullCoinPage} isFavorite={panelCoin?favorites.includes(panelCoin.id):false} onToggleFavorite={handleToggleFavorite} />
+      <MobileBottomBar activeTab={mobileTab} onTabChange={setMobileTab} onAskOrb={()=>{}} />
     </div>
   );
 }
