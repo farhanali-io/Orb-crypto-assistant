@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CryptoCoin } from '../types/crypto';
 import { formatCurrency, formatCompactNumber } from '../services/cryptoApi';
-import { Star, Share2, Globe, FileText, Search, Bird, MessageCircle } from 'lucide-react';
+import { Star, Share2 } from 'lucide-react';
 
 interface Props {
   coin: CryptoCoin;
@@ -10,133 +10,133 @@ interface Props {
   onToggleFavorite: (id: string) => void;
 }
 
-const TF = ['24H','7D','1M','3M','1Y','MAX'] as const;
+const TFS = ['24H','7D','1M','3M','1Y','MAX'] as const;
 
 export const CoinDetail: React.FC<Props> = ({ coin, onBack, favorites, onToggleFavorite }) => {
-  const [tf, setTf] = useState<typeof TF[number]>('24H');
+  const [tf, setTf] = useState<typeof TFS[number]>('24H');
   const isFav = favorites.includes(coin.id);
-  const change = coin.price_change_percentage_24h || 0.35;
+  const change = coin.price_change_percentage_24h ?? -1.27;
   const isUp = change >= 0;
 
+  // mock chart points down
+  const chartPath = "M0 10 Q10 12 20 25 L30 18 L45 35 L65 42 L85 48 L105 52 L130 68 L155 72 L180 88 L205 92 L230 96 L260 108 L285 115 L310 120 L340 118 L380 112";
+  const areaPath = chartPath + " L380 130 L0 130 Z";
+
   return (
-    <div className="w-full min-h-screen bg-[#080808] text-white flex flex-col pb-[110px]">
-      {/* Top Nav */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-[56px] bg-[#080808]/90 backdrop-blur-xl border-b border-[#141414]">
+    <div className="w-full min-h-screen bg-[#070708] text-white flex flex-col pb-[120px] selection:bg-white/10">
+      {/* Top Orbix */}
+      <div className="sticky top-0 z-30 flex items-center justify-center h-[64px] bg-[#070708]/80 backdrop-blur-2xl border-b border-[#121212]">
+        <div className="absolute left-4 md:left-[3%] flex items-center gap-3">
+          <button onClick={onBack} className="w-8 h-8 rounded-full bg-[#151515] border border-[#222] flex items-center justify-center text-[#888]">‹</button>
+        </div>
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-[#111] border border-[#222] flex items-center justify-center"><div className="w-3 h-3 rounded-full bg-[#00ff88] shadow-[0_0_10px_#00ff88]"></div></div>
-          <span className="font-bold tracking-tight">Orbix</span>
-          <span className="text-[11px] text-neutral-500 ml-3 hidden md:block">Cryptocurrencies › {coin.name} Price</span>
+          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center"><div className="w-5 h-5 rounded-full border-[2.5px] border-black/80 relative"><div className="absolute inset-[3px] rounded-full border border-black/30"></div></div></div>
+          <span className="text-[22px] font-semibold tracking-tight">Orbix</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="w-8 h-8 rounded-full bg-[#161616] border border-[#222] flex items-center justify-center"><Share2 className="w-4 h-4 text-neutral-400" /></button>
-          <button onClick={()=>onToggleFavorite(coin.id)} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${isFav ? 'bg-[#ffcc00] border-[#ffcc00] text-black' : 'bg-[#161616] border-[#222] text-neutral-400'}`}><Star className={`w-4 h-4 ${isFav?'fill-black':''}`} /></button>
-        </div>
-      </div>
-
-      {/* Breadcrumb mobile */}
-      <div className="md:hidden px-4 py-3 text-[11px] text-neutral-500 font-mono">Cryptocurrencies <span className="mx-1">›</span> <span className="text-neutral-300">{coin.symbol.toUpperCase()} Price</span></div>
-
-      {/* Header Coin */}
-      <div className="px-4 md:px-[3%] pt-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src={coin.image} alt={coin.name} className="w-10 h-10 rounded-full border border-[#222] bg-[#141414]" />
-          <div>
-            <div className="flex items-center gap-2"><h1 className="text-[20px] md:text-[26px] font-bold tracking-tight">{coin.name}</h1><span className="text-[14px] md:text-[16px] font-bold text-[#5a6370]">Price</span></div>
-            <div className="flex items-center gap-2 mt-1"><span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] border border-[#222] text-[#888]">{coin.symbol.toUpperCase()}</span><span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] border border-[#222] text-[#888]">RANK #{coin.market_cap_rank || 4}</span></div>
-          </div>
+        <div className="absolute right-4 md:right-[3%] flex items-center gap-2">
+          <button className="w-9 h-9 rounded-full bg-[#141414] border border-[#222] flex items-center justify-center"><Share2 className="w-4 h-4 text-[#999]" /></button>
+          <button onClick={()=>onToggleFavorite(coin.id)} className={`w-9 h-9 rounded-full border flex items-center justify-center ${isFav ? 'bg-[#ffe600] border-[#ffe600] text-black' : 'bg-[#141414] border-[#222] text-[#666]'}`}><Star className={`w-4 h-4 ${isFav?'fill-black':''}`} /></button>
         </div>
       </div>
 
-      {/* Price */}
-      <div className="px-4 md:px-[3%] mt-5">
-        <div className="text-[36px] md:text-[48px] font-bold tracking-tight leading-none">{formatCurrency(coin.current_price)}</div>
-        <div className={`mt-2 text-[12px] font-mono font-bold flex items-center gap-1 ${isUp ? 'text-[#00ff88]' : 'text-[#ff4d4d]'}`}>{isUp ? '▲' : '▼'} {Math.abs(change).toFixed(2)}% <span className="text-neutral-600 font-normal ml-1">24h</span></div>
+      {/* Centered Hero */}
+      <div className="w-full flex flex-col items-center pt-6 md:pt-10 pb-2 px-4">
+        <div className="relative">
+          <div className="absolute inset-0 blur-[30px] bg-[#f7931a]/30 rounded-full scale-110"></div>
+          <img src={coin.image} alt={coin.name} className="relative w-[88px] h-[88px] md:w-[112px] md:h-[112px] rounded-full shadow-[0_0_40px_rgba(247,147,26,0.4)]" />
+        </div>
+        <div className="mt-5 text-[14px] text-[#6a6570] font-medium tracking-wide">Bitcoin Price</div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full bg-[#1e1c20] border border-[#2a282c] text-[11px] font-bold tracking-widest text-[#9a959e]">{coin.symbol.toUpperCase()}</span>
+          <span className="px-3 py-1 rounded-full bg-[#1e1c20] border border-[#2a282c] text-[11px] font-bold tracking-widest text-[#9a959e]">RANK #{coin.market_cap_rank || 1}</span>
+        </div>
+        <div className="mt-5 text-[44px] md:text-[56px] font-bold tracking-tighter leading-none">{formatCurrency(coin.current_price).replace('$',' $').trim() ? formatCurrency(coin.current_price) : '$64,931.00'}</div>
+        <div className={`mt-2 flex items-center gap-1.5 text-[14px] font-bold font-mono ${isUp ? 'text-[#00e676]' : 'text-[#ff4d4d]'}`}>
+          <span>{isUp ? '↑' : '↓'}</span><span>{Math.abs(change).toFixed(2)}% 24h</span><span className="ml-1 opacity-60">{isUp ? '↗' : '↘'}</span>
+        </div>
       </div>
 
-      {/* Timeframe Pills */}
-      <div className="px-4 md:px-[3%] mt-6">
-        <div className="inline-flex bg-[#111113] border border-[#1a1a1a] rounded-full p-1 gap-1">
-          {TF.map(t=>(
-            <button key={t} onClick={()=>setTf(t)} className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all ${tf===t ? 'bg-white text-black' : 'text-[#777] hover:text-white'}`}>{t}</button>
+      {/* Timeframes */}
+      <div className="w-full flex justify-center mt-7 px-4">
+        <div className="inline-flex bg-[#121114] border border-[#1e1c20] rounded-full p-1.5 gap-1.5">
+          {TFS.map(t=>(
+            <button key={t} onClick={()=>setTf(t)} className={`min-w-[48px] md:min-w-[56px] h-8 rounded-full text-[12px] font-bold tracking-wide transition-all ${tf===t ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.2)]' : 'bg-[#201e22] text-[#7a757e] hover:text-[#b5b0ba]'}`}>{t}</button>
           ))}
         </div>
-        <div className="mt-3 text-[11px] text-[#555] font-mono flex items-center gap-1.5"><span>↔</span> Drag across the chart to measure a move</div>
       </div>
 
-      {/* Chart */}
-      <div className="w-full mt-4 px-0 md:px-[3%]">
-        <div className="relative w-full h-[300px] md:h-[420px] bg-[#080808] border-y md:border border-[#141414] md:rounded-2xl overflow-hidden">
-          <svg viewBox="0 0 400 200" className="absolute inset-0 w-full h-full">
+      {/* Chart Card - Premium */}
+      <div className="w-full px-3 md:px-[4%] mt-6">
+        <div className="relative w-full h-[300px] md:h-[420px] bg-[#101010] border border-[#1e1c20] rounded-[22px] overflow-hidden">
+          <div className="absolute top-3 left-4 text-[12px] font-mono text-[#6b6670]">$66k</div>
+          <div className="absolute bottom-8 left-4 text-[12px] font-mono text-[#6b6670]">$62k</div>
+          {/* Grid */}
+          <div className="absolute inset-0 opacity-[0.06]" style={{backgroundImage:`linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`, backgroundSize:'80px 40px'}}></div>
+          <svg viewBox="0 0 400 130" className="absolute inset-0 w-full h-full p-4 pt-8 pb-10">
             <defs>
-              <linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#00ff88" stopOpacity="0.25"/><stop offset="100%" stopColor="#00ff88" stopOpacity="0"/></linearGradient>
+              <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#ff7a45" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#ff7a45" stopOpacity="0.02" />
+              </linearGradient>
             </defs>
-            <path d="M0 80 Q20 20 40 50 T80 30 T120 60 T160 100 T200 120 T240 90 T280 110 T320 70 T400 20" fill="none" stroke="#00ff88" strokeWidth="1.2" />
-            <path d="M0 80 Q20 20 40 50 T80 30 T120 60 T160 100 T200 120 T240 90 T280 110 T320 70 T400 20 L400 200 L0 200 Z" fill="url(#g)" />
+            <path d={areaPath} fill="url(#g1)" />
+            <path d={chartPath} fill="none" stroke="#ff6b3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M0 10 Q10 12 20 25" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="40" />
           </svg>
-          <div className="absolute right-3 top-10 text-[10px] font-mono text-[#444]">$601.05B</div>
-          <div className="absolute right-3 top-1/2 text-[10px] font-mono text-[#444]">$583.98B</div>
-          <div className="absolute right-3 bottom-10 text-[10px] font-mono text-[#444]">$566.46</div>
+          <div className="absolute bottom-2.5 left-0 right-0 text-center text-[11px] font-mono text-[#6b6670] flex items-center justify-center gap-1.5"><span className="w-3 h-3 rounded-[3px] bg-[#2a282c] flex items-center justify-center">◧</span> drag to measure •</div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#141414] border-y border-[#141414] mt-0 md:mt-6 md:rounded-2xl md:overflow-hidden md:mx-[3%]">
-        {[
-          ['MARKET CAP', formatCompactNumber(coin.market_cap)],
-          ['24H VOLUME', formatCompactNumber(coin.total_volume)],
-          ['FULLY DILUTED VALUE', formatCompactNumber(coin.market_cap)],
-          ['24H RANGE', 'RANGE BAR'],
-          ['LAUNCHED', '2017-07-08'],
-          ['ALGORITHM', '-'],
-          ['SYMBOL', coin.symbol.toUpperCase()],
-          ['READING TIME', '1 min'],
-        ].map(([k,v],i)=>(
-          <div key={i} className="bg-[#080808] px-4 py-4">
-            <div className="text-[9px] font-bold tracking-widest text-[#555] uppercase">{k}</div>
-            {v==='RANGE BAR' ? (
-              <div className="mt-2">
-                <div className="flex justify-between text-[10px] font-mono text-[#666]"><span>$566.46</span><span>$598.82</span></div>
-                <div className="mt-1 h-1 rounded-full bg-gradient-to-r from-[#ff4d4d] to-[#00ff88] relative"><div className="absolute right-6 -top-1 w-2.5 h-2.5 rounded-full bg-white border-2 border-black"></div></div>
-              </div>
-            ) : <div className="mt-1 text-[14px] font-bold font-mono text-white">{v}</div>}
-          </div>
-        ))}
+      {/* Market Cards 2x2 */}
+      <div className="w-full px-3 md:px-[4%] mt-4 grid grid-cols-2 gap-3">
+        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
+          <div className="text-[10px] tracking-[0.14em] font-bold text-[#8a858f] uppercase">Market Cap</div>
+          <div className="mt-1 text-[24px] md:text-[28px] font-bold tracking-tight">{formatCompactNumber(coin.market_cap) || '$1.31T'}</div>
+        </div>
+        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
+          <div className="text-[10px] tracking-[0.14em] font-bold text-[#8a858f] uppercase">24H Volume</div>
+          <div className="mt-1 text-[24px] md:text-[28px] font-bold tracking-tight">{formatCompactNumber(coin.total_volume) || '$49.29B'}</div>
+        </div>
+        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
+          <div className="text-[10px] tracking-[0.14em] font-bold text-[#8a858f] uppercase">Fully Diluted</div>
+          <div className="mt-1 text-[24px] md:text-[28px] font-bold tracking-tight">{formatCompactNumber(coin.market_cap) || '$1.36T'}</div>
+        </div>
+        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4">
+          <div className="text-[10px] tracking-[0.14em] font-bold text-[#8a858f] uppercase text-center">24H Range</div>
+          <div className="mt-3 h-[8px] rounded-full bg-gradient-to-r from-[#ff5a5a] via-[#c5b06a] to-[#00e676] relative overflow-hidden"></div>
+          <div className="mt-2 flex justify-between text-[11px] font-mono text-[#9a959e]"><span>$62,104</span><span>$66,042</span></div>
+        </div>
       </div>
 
       {/* Sentiment */}
-      <div className="px-4 md:px-[3%] mt-6">
-        <div className="text-[10px] font-bold tracking-widest text-[#555] uppercase">Community Sentiment</div>
-        <div className="mt-2 h-2 rounded-full flex overflow-hidden bg-[#141414]">
-          <div className="h-full bg-[#00ff88]" style={{width:'51%'}}></div>
-          <div className="h-full bg-[#ff2d55]" style={{width:'49%'}}></div>
+      <div className="w-full px-4 md:px-[4%] mt-7">
+        <div className="text-[13px] font-semibold text-white">Community Sentiment</div>
+        <div className="mt-3 h-8 rounded-full bg-[#1a181c] border border-[#252329] flex overflow-hidden p-1">
+          <div className="h-full rounded-full bg-[#00d26a] flex items-center px-3 text-[11px] font-bold text-white" style={{width:'51%'}}>51% bull</div>
+          <div className="flex-1 flex items-center justify-end px-3 text-[11px] font-bold text-[#ffb3b3]">49% bear</div>
         </div>
-        <div className="mt-1 flex justify-between text-[11px] font-mono"><span className="text-[#00ff88]">51% bull</span><span className="text-[#ff2d55]">49% bear</span></div>
-      </div>
-
-      {/* Links */}
-      <div className="px-4 md:px-[3%] mt-8 flex flex-col gap-4 border-t border-[#111] pt-6">
-        {[
-          [Globe,'Website'],
-          [FileText,'Whitepaper'],
-          [Search,'Explorer'],
-          [Bird,'X / Twitter'],
-          [MessageCircle,'Reddit'],
-        ].map(([Icon,label],i)=>(
-          <div key={i} className="flex items-center gap-3 text-[13px] text-[#aaa] hover:text-white cursor-pointer">
-            <Icon className="w-4 h-4 text-[#555]" /> {label as string}
-          </div>
-        ))}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            ['Website','🌐'],
+            ['Whitepaper','📄'],
+            ['Explorer','🔍'],
+            ['X Twitter','𝕏'],
+            ['Reddit','👽'],
+          ].map(([l,ico])=>(
+            <button key={l} className="h-8 px-3.5 rounded-full bg-[#1e1c20] border border-[#2a282c] text-[11px] font-bold text-[#b5b0ba] flex items-center gap-1.5"><span>{ico}</span>{l}</button>
+          ))}
+        </div>
       </div>
 
       {/* About */}
-      <div className="px-4 md:px-[3%] mt-10 border-t border-[#111] pt-8">
+      <div className="w-full px-4 md:px-[4%] mt-8 pt-7 border-t border-[#141214]">
         <h2 className="text-[22px] font-bold tracking-tight">About {coin.name}</h2>
-        <p className="mt-4 text-[14px] leading-[1.7] text-[#aaa]">
-          <span className="float-left text-[48px] leading-[0.8] font-bold text-white mr-2 mt-1">{coin.name[0]}</span>
-          {coin.name} is the native utility token of the BNB Chain ecosystem, acting as a multi-chain asset that powers decentralized applications and facilitates value exchange across its network. It serves as the primary asset for paying transaction gas and smart contract deployment fees while providing users with tiered fee discounts on the Binance exchange.
-          <br/><br/>
-          The project's main value proposition lies in its unified multi-chain architecture, which integrates a smart contract platform, a Layer 2 scaling solution, and a decentralized data storage network into a cohesive settlement and data availability layer. The network operates on a Proof of Staked Authority consensus mechanism, utilizing a group of 21 active validators known as the Cabinet to verify transactions and produce blocks every 3 seconds.
-        </p>
+        <div className="mt-4 flex gap-3">
+          <span className="text-[56px] leading-[0.85] font-bold text-white">{coin.name[0]}</span>
+          <p className="text-[13.5px] leading-[1.65] text-[#b5b0ba]">
+            Bitcoin is the first decentralized cryptocurrency, introduced in 2009. It operates peer-to-peer without central authority, secured by proof-of-work. Limited to 21M supply, it's designed as digital gold for store-of-value and global payments. Often referred to as digital gold, Bitcoin is capped at 21 million coins, making it a deflationary store of value used globally for transfer, investment, and hedging against inflation.
+          </p>
+        </div>
       </div>
     </div>
   );
