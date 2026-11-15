@@ -19,6 +19,7 @@ import { DustBackground } from './components/DustBackground';
 import { CoinRightPanel } from './components/CoinRightPanel';
 import { TimeFilterBar } from './components/TimeFilterBar';
 import { AskOrbChat } from './components/AskOrbChat';
+import { BubbleSkeleton, TableSkeleton } from './components/SkeletonLoader';
 
 type CurrentRoute = 'heatmap' | 'about' | 'contact' | 'coin';
 
@@ -40,6 +41,8 @@ export default function App() {
   const [isAskOrbOpen, setIsAskOrbOpen] = useState(false);
   const [hasLaunched, setHasLaunched] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Read the current theme from <html data-theme>, which the ink module owns.
   const theme = useSyncExternalStore<ColorTheme>(
@@ -102,11 +105,12 @@ export default function App() {
   const loadData = useCallback(async (force = false) => {
     try {
       const res = await fetchTop100Coins(force);
+      setIsLoading(false); setLastUpdated(new Date());
       if (res.coins && res.coins.length > 0) {
         setCoins(res.coins);
         setSelectedCoin(prev => prev ? (res.coins.find(c => c.id === prev.id) || prev) : null);
       }
-    } catch (e) { console.error('Failed to update crypto prices', e); }
+    } catch (e) { console.error('Failed to update crypto prices', e); setIsLoading(false); setLastUpdated(new Date()); }
   }, []);
 
   useEffect(() => { loadData(false); }, [loadData]);
@@ -146,7 +150,7 @@ export default function App() {
     <div className="relative min-h-screen bg-[#000000] text-white flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300 pb-0">
       <DustBackground />
       <div className="relative z-20">
-        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab}
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onHomeClick={handleBackToHeatmap} onNavigate={route => { window.location.hash = route; }} theme={theme} currentRoute={currentRoute} mobileTab={mobileTab} onTabChange={setMobileTab}
           coins={coins}
           onSelectCoin={handleOpenFullCoinPage} />
       </div>
@@ -163,19 +167,29 @@ export default function App() {
           <div className="w-full bg-transparent flex flex-col">
             {currentRoute === 'heatmap' && <div className={mobileTab === 'tables' ? 'hidden md:block' : 'block'}><TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} /></div>}
             <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
-              <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />
+              {isLoading ? <BubbleSkeleton /> : <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />}
             </div>
             <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col pb-2'}`}>
-              <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+              {isLoading ? <TableSkeleton /> : <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />}
             </div>
           </div>
         )}
       </main>
 
-      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-8 px-4 text-center w-full relative z-10">
-        <div className="text-[11px] sm:text-xs text-neutral-500 font-mono tracking-wide">
-          <span className="text-white font-bold">© 2027 Orbix.</span> No financial advice. Do your own research.
+      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-8 px-4 w-full relative z-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-6 text-[11px] font-mono">
+            <span className="text-white font-bold">© 2026 Orbix.</span>
+            <button onClick={()=>{window.location.hash='#/about'}} className="text-neutral-400 hover:text-white">About</button>
+            <button onClick={()=>{window.location.hash='#/contact'}} className="text-neutral-400 hover:text-white">Contact</button>
+            <a href="https://www.coingecko.com" target="_blank" rel="noopener" className="text-neutral-500 hover:text-emerald-400">Powered by CoinGecko</a>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-500">
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Live</span>
+            <span>Last updated: {Math.floor((Date.now() - lastUpdated.getTime())/1000)}s ago</span>
+          </div>
         </div>
+        <div className="text-[10px] text-neutral-600 font-mono text-center mt-4">No financial advice. Do your own research.</div>
       </footer>
 
 

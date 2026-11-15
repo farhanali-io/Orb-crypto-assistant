@@ -28,7 +28,7 @@ export const MarketTable: React.FC<MarketTableProps> = ({
 
   const formatPercent = (val?: number) => {
     if (!val || Math.abs(val) < 0.05) return '0.0%';
-    return `${val.toFixed(1)}%`;
+    const arrow = val > 0 ? "▲ " : val < 0 ? "▼ " : ""; return `${arrow}${val.toFixed(1)}%`;
   };
 
   const getAIPrediction = (val?: number) => {

@@ -2,81 +2,65 @@ export default {
   async fetch(request: Request, env: any): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/api/test') {
-      return new Response(JSON.stringify({ status: "Worker alive!", hasGemini: !!env.GEMINI_API_KEY, hasGroq: !!env.GROQ_API_KEY, hasOpenRouter: !!env.OPENROUTER_API_KEY, hasAI: !!env.AI }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ status: "Worker alive!", hasAI: !!env.AI }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (url.pathname === '/api/ask-orb' && request.method === 'POST') {
       try {
-        const { question, coins, lastCoin } = await request.json() as any;
-        const q = question.toLowerCase();
-        let mentionedCoins = coins.filter((c: any) => q.includes(c.symbol.toLowerCase()) || q.includes(c.name.toLowerCase()));
-        if (mentionedCoins.length === 0 && lastCoin) {
-          const lc = coins.find((c:any) => c.symbol.toLowerCase() === lastCoin.toLowerCase() || c.id === lastCoin);
-          if (lc) mentionedCoins = [lc];
+        const { question, coins } = await request.json() as any;
+        const q = (question || '').toLowerCase();
+
+        if (/(will.*pump|will.*go high in next|should i buy|do i buy|buy them|which coin.*will.*pump|which coin.*will go)/i.test(q)) {
+          return new Response(JSON.stringify({ text: "I cannot predict future prices or advise on buying. I only share current live data: price, 24h/7d/30d/1y changes, market cap and volume.\nTell me which coin you want data for.\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
         }
-        const contextCoins = (mentionedCoins.length > 0 ? mentionedCoins.slice(0, 3) : coins.slice(0, 5)).map((c: any) => ({
-          symbol: c.symbol.toUpperCase(), name: c.name, price: c.current_price,
-          change24h: c.price_change_percentage_24h, change7d: c.price_change_percentage_7d_in_currency,
-          change30d: c.price_change_percentage_30d_in_currency, change1y: (c as any).price_change_percentage_1y_in_currency,
-          market_cap: c.market_cap, volume: c.total_volume
+
+        // If user asks hamster, coins[0] will be undefined - handle it
+        if (q.includes('hamster')) {
+          return new Response(JSON.stringify({ text: "Hamster Kombat (HMSTR) is not in Top 100 right now, so I don't have live price. I track Top 100 only. Ask me about BTC, TRX, ETH, etc.\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
+        }
+
+        const target = coins?.[0];
+        const contextList = (coins || []).slice(0,3).map((c:any)=>({
+          name: c.name, symbol: c.symbol, price: c.current_price,
+          change24h: c.price_change_percentage_24h,
+          change7d: (c as any).price_change_percentage_7d_in_currency,
+          change30d: (c as any).price_change_percentage_30d_in_currency,
+          change1y: (c as any).price_change_percentage_1y_in_currency,
+          rank: c.market_cap_rank
         }));
-        const systemPrompt = `You are Orb, crypto assistant. Data: ${JSON.stringify(contextCoins)}. Question: ${question}. Answer in 2 short sentences with price and 24h/7d/30d changes if asked. Do NOT show thinking. End with: Not financial advice.`;
 
-        async function tryCloudflareAI(): Promise<string | null> {
-          if (!env.AI) return null;
+        const prompt = `You are Orb crypto assistant. Data: ${JSON.stringify(contextList)}. User asks: "${question}". RULES: Use data, never output JSON array, never predict future. 1-2 sentences. End with: Not financial advice.`;
+
+        let textResponse: string | null = null;
+        if (env.AI) {
           try {
-            const res: any = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+            const r: any = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
               messages: [
-                { role: 'system', content: 'You are a helpful assistant. Only output final answer, no reasoning.' },
-                { role: 'user', content: systemPrompt }
-              ], max_tokens: 250
+                { role: 'system', content: 'You are helpful crypto assistant. Never show JSON, never predict.' },
+                { role: 'user', content: prompt }
+              ],
+              max_tokens: 300
             });
-            return res.response || res.text || null;
-          } catch (e) { return null; }
+            textResponse = r.response || r.text || null;
+          } catch {}
         }
-        async function tryGroq(): Promise<string | null> {
-          if (!env.GROQ_API_KEY) return null;
-          try {
-            const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.GROQ_API_KEY}` },
-              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: systemPrompt }], max_tokens: 250 })
-            });
-            const d: any = await r.json(); return d.choices?.[0]?.message?.content || null;
-          } catch (e) { return null; }
-        }
-        async function tryOpenRouter(): Promise<string | null> {
-          if (!env.OPENROUTER_API_KEY) return null;
-          try {
-            const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`, 'HTTP-Referer': 'https://orb-crypto-assistant.workers.dev' },
-              body: JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', messages: [{ role: 'user', content: systemPrompt }], max_tokens: 250 })
-            });
-            const d: any = await r.json(); return d.choices?.[0]?.message?.content || null;
-          } catch (e) { return null; }
-        }
-        async function tryGemini(model: string): Promise<string | null> {
-          if (!env.GEMINI_API_KEY) return null;
-          try {
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
-            const r = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] }), signal: AbortSignal.timeout(7000) });
-            const d: any = await r.json(); if (d.error) return null; return d.candidates?.[0]?.content?.parts?.[0]?.text || null;
-          } catch (e) { return null; }
-        }
-
-        let textResponse = await tryCloudflareAI() || await tryGroq() || await tryOpenRouter() || await tryGemini("gemini-2.0-flash") || await tryGemini("gemini-1.5-flash");
 
         if (textResponse) {
-          // Clean leaks
-          textResponse = textResponse.replace(/I removed.*|I added.*|I will rephrase.*|# I.*/gi, '').replace(/Not financial advice\.?/gi, '').trim();
-          textResponse = textResponse.replace(/\s+/g, ' ').trim();
-          // Ensure max 3 sentences then add disclaimer
-          const sentences = textResponse.split('. ').slice(0,3).join('. ');
-          textResponse = sentences + (sentences.endsWith('.') ? '' : '.') + "\nNot financial advice.";
+          textResponse = textResponse.replace(/\[.*\{.*\}.*\]/g, '').replace(/\{.*\}/g, '').trim();
+          textResponse = textResponse.replace(/I removed.*|I added.*|# I.*/gi, '').trim();
+          textResponse = textResponse.replace(/Not financial advice\.?/gi, '').trim();
+          const parts = textResponse.split('. ').filter((s:string)=>s.trim().length>5 && !s.includes('price_change') && !s.includes('symbol')).slice(0,3);
+          let clean = parts.join('. ');
+          if(clean && !clean.endsWith('.')) clean += '.';
+          if(!clean && target) clean = `${target.name} is $${target.current_price?.toLocaleString()} with 24h ${target.price_change_percentage_24h?.toFixed(2)}%.`;
+          if(!clean) clean = `BTC is trading now.`;
+          textResponse = clean + "\nNot financial advice.";
           return new Response(JSON.stringify({ text: textResponse }), { headers: {'Content-Type': 'application/json'} });
-        } else {
-          return new Response(JSON.stringify({ text: "Orb is busy - all AI quotas hit. Try again.\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
         }
+
+        return new Response(JSON.stringify({ text: `${target?.name || 'BTC'} is $${target?.current_price?.toLocaleString()}.\nNot financial advice.` }), { headers: {'Content-Type': 'application/json'} });
+
       } catch (err: any) {
-        return new Response(JSON.stringify({ text: "Server error: " + err.message }), { headers: {'Content-Type': 'application/json'} });
+        return new Response(JSON.stringify({ text: "Server error: " + err.message + "\nNot financial advice." }), { headers: {'Content-Type': 'application/json'} });
       }
     }
     return env.ASSETS.fetch(request);
