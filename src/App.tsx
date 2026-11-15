@@ -176,9 +176,9 @@ export default function App() {
         )}
       </main>
 
-      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-8 px-4 w-full relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-6 text-[11px] font-mono">
+      <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 pb-24 md:pb-8 w-full relative z-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
+          <div className="flex items-center justify-center md:justify-start gap-4 md:gap-6 text-[11px] font-mono flex-wrap">
             <span className="text-white font-bold">© 2026 Orbix.</span>
             <button onClick={()=>{window.location.hash='#/about'}} className="text-neutral-400 hover:text-white">About</button>
             <button onClick={()=>{window.location.hash='#/contact'}} className="text-neutral-400 hover:text-white">Contact</button>
@@ -189,7 +189,7 @@ export default function App() {
             <span>Last updated: {Math.floor((Date.now() - lastUpdated.getTime())/1000)}s ago</span>
           </div>
         </div>
-        <div className="text-[10px] text-neutral-600 font-mono text-center mt-4">No financial advice. Do your own research.</div>
+        <div className="hidden md:block text-[10px] text-neutral-600 font-mono text-center mt-4">No financial advice. Do your own research.</div>
       </footer>
 
 
