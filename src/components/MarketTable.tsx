@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CryptoCoin } from '../types/crypto';
-import { formatCurrency, formatCompactNumber, formatPercentage } from '../services/cryptoApi';
-import { Star, Globe, Compass, Twitter, Plus, Sparkles } from 'lucide-react';
+import { formatCurrency, formatCompactNumber } from '../services/cryptoApi';
+import { Star } from 'lucide-react';
 
-interface MarketTableProps {
+interface Props {
   coins: CryptoCoin[];
   onSelectCoin: (coin: CryptoCoin) => void;
   searchQuery: string;
@@ -11,160 +11,74 @@ interface MarketTableProps {
   onToggleFavorite: (id: string) => void;
 }
 
-export const MarketTable: React.FC<MarketTableProps> = ({
-  coins,
-  onSelectCoin,
-  favorites,
-  onToggleFavorite,
-}) => {
-  
-  const getPercentColor = (val?: number) => {
-    if (val === undefined || val === null) return 'text-slate-400 bg-[#111]';
-    if (Math.abs(val) < 0.05) return 'text-slate-400 bg-[#111]'; // Neutral gray for 0
-    if (val > 0) return 'text-white bg-[#16a34a]'; // solid green
-    if (val < 0) return 'text-white bg-[#dc2626]'; // solid red
-    return 'text-slate-400 bg-[#111]'; // neutral
-  };
+export const MarketTable: React.FC<Props> = ({ coins, onSelectCoin, favorites, onToggleFavorite }) => {
+  const [showFavsOnly, setShowFavsOnly] = useState(false);
+  const list = showFavsOnly ? coins.filter(c => favorites.includes(c.id)) : coins;
 
-  const formatPercent = (val?: number) => {
-    if (!val || Math.abs(val) < 0.05) return '0.0%';
-    const arrow = val > 0 ? "▲ " : val < 0 ? "▼ " : ""; return `${arrow}${val.toFixed(1)}%`;
+  const pill = (v?: number) => {
+    if (!v || Math.abs(v) < 0.05) return 'bg-[#1a1a1a] text-[#6b7280] border-[#222]';
+    if (v > 0) return 'bg-[rgba(16,185,129,0.12)] text-[#22c55e] border-[rgba(34,197,94,0.25)]';
+    return 'bg-[rgba(239,68,68,0.12)] text-[#ef4444] border-[rgba(239,68,68,0.25)]';
   };
-
-  const getAIPrediction = (val?: number) => {
-    const change = val || 0;
-    if (change > 2) return { label: 'Bullish', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
-    if (change < -2) return { label: 'Bearish', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' };
-    return { label: 'Neutral', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
+  const fmt = (v?: number) => {
+    if (!v || Math.abs(v) < 0.05) return '0.00%';
+    return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
   };
 
   return (
-    <div className="w-full overflow-x-auto bg-[#0a0a0a] border-y border-[#1a1a1a]">
-      <table className="w-full text-left border-collapse min-w-[1000px]">
-        <thead>
-          <tr className="border-b border-[#1a1a1a] text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-[#0a0a0a]">
-            <th className="py-3 px-4 w-12 text-center">#</th>
-            <th className="py-3 px-4">Name</th>
-            <th className="py-3 px-4 text-right">Price</th>
-            <th className="py-3 px-4 text-right">Market Cap</th>
-            <th className="py-3 px-4 text-right">24H Volume</th>
-            <th className="py-3 px-2 text-center w-16">1H</th>
-            <th className="py-3 px-2 text-center w-16">Day</th>
-            <th className="py-3 px-2 text-center w-16">Week</th>
-            <th className="py-3 px-2 text-center w-16">Month</th>
-            <th className="py-3 px-2 text-center w-16">Year</th>
-            <th className="py-3 px-4 text-center">Links</th>
-            <th className="py-3 px-4 text-right">AI Prediction</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#1a1a1a]">
-          {coins.map((coin, index) => {
-            const isFav = favorites.includes(coin.id);
-            const ai = getAIPrediction(coin.price_change_percentage_24h);
+    <div className="w-full bg-[#08080a] min-h-screen">
+      {/* Filter */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#161616] sticky top-0 z-10 bg-[#08080a]/90 backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowFavsOnly(false)} className={`h-8 px-4 rounded-full text-[12px] font-bold tracking-tight transition-all ${!showFavsOnly ? 'bg-white text-black' : 'bg-[#141414] text-neutral-400 border border-[#222] hover:text-white'}`}>All</button>
+          <button onClick={() => setShowFavsOnly(true)} className={`h-8 px-4 rounded-full text-[12px] font-bold flex items-center gap-1.5 transition-all ${showFavsOnly ? 'bg-white text-black' : 'bg-[#141414] text-neutral-400 border border-[#222] hover:text-white'}`}><Star className="w-3.5 h-3.5" /> Favorites ({favorites.length})</button>
+        </div>
+        <span className="text-[11px] font-mono text-neutral-600">{list.length} assets</span>
+      </div>
 
-            return (
-              <tr 
-                key={coin.id} 
-                className="hover:bg-[#141414] transition-colors group cursor-pointer"
-                onClick={() => onSelectCoin(coin)}
-              >
-                {/* Rank & Favorite */}
-                <td className="py-3 px-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(coin.id); }}
-                      className="text-slate-600 hover:text-amber-400 transition-colors"
-                    >
-                      {isFav ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <Plus className="w-3.5 h-3.5" />}
-                    </button>
-                    <span className="text-xs font-mono text-slate-500">{index + 1}</span>
-                  </div>
-                </td>
+      {/* DESKTOP */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-[56px_1fr_140px_140px_100px] px-6 py-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500 border-b border-[#161616] bg-[#0c0c0e]">
+          <span>#</span><span>Name</span><span className="text-right">Price</span><span className="text-right">Market Cap</span><span className="text-right">24h</span>
+        </div>
+        {list.map((coin, i) => {
+          const isFav = favorites.includes(coin.id);
+          return (
+            <div key={coin.id} onClick={() => onSelectCoin(coin)} className="grid grid-cols-[56px_1fr_140px_140px_100px] items-center px-6 h-[68px] border-b border-[#121212] hover:bg-[#111113] transition-colors cursor-pointer group">
+              <span className="text-[13px] font-mono text-neutral-500">{String(i+1).padStart(2,'0')}</span>
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-full bg-[#161616] flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.06)]"><img src={coin.image} alt={coin.name} className="w-7 h-7 rounded-full" /></div>
+                <div><div className="flex items-center gap-2"><span className="text-[14px] font-semibold text-white tracking-tight group-hover:text-[#d1ffef]">{coin.name}</span>{isFav && <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}</div><span className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">{coin.symbol}</span></div>
+              </div>
+              <span className="text-right text-[14px] font-semibold text-white font-mono">{formatCurrency(coin.current_price)}</span>
+              <span className="text-right text-[13px] font-mono text-neutral-400">{formatCompactNumber(coin.market_cap)}</span>
+              <div className="flex justify-end"><span className={`px-3 py-1.5 rounded-full text-[12px] font-bold font-mono border ${pill(coin.price_change_percentage_24h)}`}>{fmt(coin.price_change_percentage_24h)}</span></div>
+            </div>
+          );
+        })}
+      </div>
 
-                {/* Name & Ticker */}
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
-                    <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full shrink-0" />
-                    <div className="flex items-baseline gap-1.5 truncate">
-                      <span className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors truncate">{coin.name}</span>
-                      <span className="text-[10px] font-mono text-slate-500 uppercase">{coin.symbol}</span>
-                    </div>
-                  </div>
-                </td>
-
-                {/* Price */}
-                <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-mono text-white font-medium">{formatCurrency(coin.current_price)}</span>
-                </td>
-
-                {/* Market Cap & Volume */}
-                <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-mono text-slate-300">{formatCompactNumber(coin.market_cap)}</span>
-                </td>
-                <td className="py-3 px-4 text-right">
-                  <span className="text-sm font-mono text-slate-300">{formatCompactNumber(coin.total_volume)}</span>
-                </td>
-
-                {/* Performance Cells */}
-                <td className="p-1">
-                  <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_1h_in_currency)}`}>
-                    {formatPercent(coin.price_change_percentage_1h_in_currency)}
-                  </div>
-                </td>
-                <td className="p-1">
-                  <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_24h)}`}>
-                    {formatPercent(coin.price_change_percentage_24h)}
-                  </div>
-                </td>
-                <td className="p-1">
-                  <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_7d_in_currency)}`}>
-                    {formatPercent(coin.price_change_percentage_7d_in_currency)}
-                  </div>
-                </td>
-                <td className="p-1">
-                  <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_30d_in_currency)}`}>
-                    {formatPercent(coin.price_change_percentage_30d_in_currency)}
-                  </div>
-                </td>
-                <td className="p-1">
-                  <div className={`w-full h-full py-2 rounded-sm text-center text-[11px] font-bold font-mono ${getPercentColor(coin.price_change_percentage_1y_in_currency)}`}>
-                    {formatPercent(coin.price_change_percentage_1y_in_currency)}
-                  </div>
-                </td>
-
-                {/* Links */}
-                <td className="py-3 px-4">
-                  <div className="flex items-center justify-center gap-2 text-slate-600">
-                    {coin.homepage && (
-                      <a href={coin.homepage} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-white transition-colors" title="Website">
-                        <Globe className="w-4 h-4" />
-                      </a>
-                    )}
-                    {coin.blockchain_site && (
-                      <a href={coin.blockchain_site} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-white transition-colors" title="Explorer">
-                        <Compass className="w-4 h-4" />
-                      </a>
-                    )}
-                    {coin.twitter_screen_name && (
-                      <a href={`https://twitter.com/${coin.twitter_screen_name}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-sky-400 transition-colors" title="Twitter">
-                        <Twitter className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                </td>
-
-                {/* AI Prediction */}
-                <td className="py-3 px-4 text-right">
-                  <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-[10px] font-bold tracking-wide uppercase ${ai.color}`}>
-                    <Sparkles className="w-3 h-3" />
-                    {ai.label}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {/* MOBILE - PREMIUM */}
+      <div className="md:hidden flex flex-col">
+        {list.map((coin, i) => {
+          const isFav = favorites.includes(coin.id);
+          return (
+            <div key={coin.id} onClick={() => onSelectCoin(coin)} className="flex items-center gap-3 px-4 h-[74px] border-b border-[#121212] active:bg-[#121212] bg-[#08080a]">
+              <span className="text-[12px] font-mono text-[#555] w-7">{String(i+1).padStart(2,'0')}</span>
+              <div className="w-10 h-10 rounded-full bg-[#141416] border border-[#1e1e1e] flex items-center justify-center shadow-[0_0_18px_rgba(255,255,255,0.05)]"><img src={coin.image} alt={coin.name} className="w-7 h-7 rounded-full" /></div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5"><span className="text-[14px] font-semibold text-white truncate tracking-tight">{coin.name}</span>{isFav && <Star className="w-3 h-3 fill-amber-300 text-amber-300" />}</div>
+                <span className="text-[11px] font-mono text-neutral-500 uppercase">{coin.symbol}</span>
+              </div>
+              <div className="text-right min-w-[92px]">
+                <div className="text-[14px] font-semibold text-white font-mono tracking-tight">{formatCurrency(coin.current_price)}</div>
+                <div className="text-[11px] font-mono text-neutral-500">MC {formatCompactNumber(coin.market_cap)}</div>
+              </div>
+              <span className={`ml-1 px-3 py-1.5 rounded-full text-[12px] font-bold font-mono border min-w-[68px] text-center ${pill(coin.price_change_percentage_24h)}`}>{fmt(coin.price_change_percentage_24h)}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
