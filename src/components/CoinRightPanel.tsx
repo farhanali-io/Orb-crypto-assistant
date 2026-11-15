@@ -1,136 +1,202 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { X, Star, ExternalLink, TrendingUp, TrendingDown, DollarSign, Activity, BarChart2 } from 'lucide-react';
 import { CryptoCoin } from '../types/crypto';
-import { formatCurrency, formatCompactNumber } from '../services/cryptoApi';
-import { Star, Share2 } from 'lucide-react';
+import { formatCurrency, formatPercentage, formatCompactNumber } from '../services/cryptoApi';
 
-interface Props {
-  coin: CryptoCoin;
-  onBack: () => void;
-  favorites: string[];
+interface CoinRightPanelProps {
+  coin: CryptoCoin | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onViewFullPage: (coin: CryptoCoin) => void;
+  isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
 }
 
-const TFS = ['24H','7D','1M','3M','1Y','MAX'] as const;
+export const CoinRightPanel: React.FC<CoinRightPanelProps> = ({
+  coin,
+  isOpen,
+  onClose,
+  onViewFullPage,
+  isFavorite,
+  onToggleFavorite,
+}) => {
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
-export const CoinRightPanel: React.FC<Props> = ({ coin, onBack, favorites, onToggleFavorite }) => {
-  const [tf, setTf] = useState<typeof TFS[number]>('24H');
-  const isFav = favorites.includes(coin.id);
-  const change = coin.price_change_percentage_24h ?? 0.96;
-  const isUp = change >= 0;
+  if (!coin) return null;
 
-  // Dynamic chart based on timeframe
-  const getPath = () => {
-    if(isUp) return "M0 80 Q20 20 40 45 L60 25 L80 60 L120 40 L160 90 L200 75 L240 85 L280 95 L320 110 L360 30";
-    return "M0 15 Q20 10 40 45 L60 25 L80 60 L120 40 L160 90 L200 75 L240 85 L280 95 L320 110 L360 30";
-  };
+  const isPositive = coin.price_change_percentage_24h >= 0;
 
   return (
-    <div className="w-full min-h-screen bg-[#050507] text-white pb-[110px]">
-      {/* Top Bar like your screenshot but refined */}
-      <div className="sticky top-0 z-30 h-[56px] bg-[#050507]/90 backdrop-blur-xl border-b border-[#111] flex items-center justify-between px-4">
-        <button onClick={onBack} className="text-[13px] text-[#6a6770] flex items-center gap-1">
-          <span className="text-[11px]">Cryptocurrencies</span><span className="mx-1">›</span><span className="text-white font-medium">{coin.symbol.toUpperCase()} Price</span>
-        </button>
-        <div className="flex gap-2">
-          <button className="w-8 h-8 rounded-lg bg-[#14141a] border border-[#222] flex items-center justify-center"><Share2 className="w-3.5 h-3.5 text-[#888]" /></button>
-          <button onClick={()=>onToggleFavorite(coin.id)} className={`w-8 h-8 rounded-lg border flex items-center justify-center ${isFav?'bg-white text-black border-white':'bg-[#14141a] border-[#222] text-[#666]'}`}><Star className={`w-3.5 h-3.5 ${isFav?'fill-black':''}`} /></button>
-        </div>
-      </div>
+    <>
+      {/* Backdrop overlay */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
-      {/* Hero - REFINED CENTERED */}
-      <div className="px-5 pt-6 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="absolute inset-0 blur-[18px] bg-[#f7931a]/25 rounded-full"></div>
-            <img src={coin.image} className="relative w-[44px] h-[44px] rounded-full bg-[#111]" alt="" />
+      {/* Slide-in Right Panel: 300ms transition */}
+      <div
+        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-[#0A0A0A] border-l border-[#222222] shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* Panel Header */}
+        <div className="px-5 py-4 border-b border-[#1c1c1c] flex items-center justify-between bg-[#0E0E0E]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white p-0.5 flex items-center justify-center shrink-0 border border-white/20 shadow-sm">
+              <img
+                src={coin.image}
+                alt={coin.name}
+                className="w-full h-full object-contain rounded-full"
+                onError={e => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-white text-base leading-tight">{coin.name}</h3>
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#202020] text-neutral-400 uppercase">
+                  #{coin.market_cap_rank || '—'}
+                </span>
+              </div>
+              <span className="text-xs font-mono text-neutral-400 uppercase">{coin.symbol}</span>
+            </div>
           </div>
+
           <div className="flex items-center gap-2">
-            <span className="text-[22px] font-bold tracking-tight">{coin.symbol.toUpperCase()}</span>
-            <span className="text-[18px] text-[#6b6b78] font-medium">Price</span>
+            <button
+              onClick={() => onToggleFavorite(coin.id)}
+              className={`p-2 rounded-lg border transition-colors ${
+                isFavorite
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : 'bg-[#181818] border-[#282828] text-neutral-400 hover:text-white'
+              }`}
+              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <Star className={`w-4 h-4 ${isFavorite ? 'fill-amber-400' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg bg-[#181818] border border-[#282828] text-neutral-400 hover:text-white transition-colors"
+              title="Close panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mt-2 ml-[56px]">
-          <span className="px-2.5 py-1 rounded-md bg-[#17161b] border border-[#23222a] text-[10px] font-bold tracking-widest text-[#8a8690]">{coin.symbol.toUpperCase()}</span>
-          <span className="px-2.5 py-1 rounded-md bg-[#17161b] border border-[#23222a] text-[10px] font-bold tracking-widest text-[#8a8690]">RANK #{coin.market_cap_rank || 6}</span>
-        </div>
-
-        <div className="mt-5">
-          <div className="text-[38px] font-bold tracking-tighter leading-none">{formatCurrency(coin.current_price)}</div>
-          <div className={`mt-2 flex items-center gap-1 text-[12px] font-bold font-mono ${isUp?'text-[#00e676]':'text-[#ff4d4d]'}`}>
-            <span>{isUp?'▲':'▼'}</span><span>{Math.abs(change).toFixed(2)}%</span><span className="ml-1 font-normal text-[#6a6770]">24h</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Time Filter - Refined Pill */}
-      <div className="px-4 mt-6">
-        <div className="flex bg-[#121115] border border-[#1e1c20] rounded-full p-1 gap-1">
-          {TFS.map(t=>(
-            <button key={t} onClick={()=>setTf(t)} className={`flex-1 h-8 rounded-full text-[11px] font-bold tracking-wide transition-all ${tf===t ? 'bg-white text-black shadow-[0_2px_8px_rgba(255,255,255,0.25)]' : 'text-[#7a757e]'}`}>{t}</button>
-          ))}
-        </div>
-        <div className="mt-3 text-[11px] text-[#55525c] flex items-center gap-1.5">↔ Drag across the chart to measure a move</div>
-      </div>
-
-      {/* Chart Card - Premium like mockup */}
-      <div className="px-3 mt-4">
-        <div className="relative w-full h-[320px] bg-[#0e0d10] border border-[#1e1c20] rounded-[20px] overflow-hidden">
-          {/* Grid subtle */}
-          <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage:`linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`, backgroundSize:'60px 60px'}}></div>
-          
-          <div className="absolute top-3 right-4 flex flex-col gap-8 text-right">
-            <span className="text-[10px] font-mono text-[#555]">$1.001</span>
-            <span className="text-[10px] font-mono text-[#555]">$0.9583</span>
-            <span className="text-[10px] font-mono text-[#555] mt-16">$0.8895</span>
+        {/* Panel Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+          {/* Main Price Card */}
+          <div className="p-4 rounded-xl bg-[#111111] border border-[#222222]">
+            <span className="text-xs font-medium text-neutral-400 block mb-1">Current Price</span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-extrabold font-mono text-white tracking-tight">
+                {formatCurrency(coin.current_price)}
+              </span>
+              <div
+                className={`flex items-center gap-1 text-sm font-bold font-mono px-2 py-0.5 rounded ${
+                  isPositive ? 'text-[#00FF88] bg-[#00FF88]/10' : 'text-[#FF2D2D] bg-[#FF2D2D]/10'
+                }`}
+              >
+                {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                <span>{formatPercentage(coin.price_change_percentage_24h)}</span>
+              </div>
+            </div>
           </div>
 
-          <svg viewBox="0 0 360 140" className="absolute inset-0 w-full h-full pt-6 pb-2 pr-14 pl-2">
-            <defs>
-              <linearGradient id="gXrp" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#00e676" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#00e676" stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id="gBtc" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#ff6b3d" stopOpacity="0.55" />
-                <stop offset="100%" stopColor="#ff6b3d" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            <path d={`${getPath()} L360 140 L0 140 Z`} fill={isUp ? "url(#gXrp)" : "url(#gBtc)"} />
-            <path d={getPath()} fill="none" stroke={isUp ? "#00e676" : "#ff6b3d"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      </div>
+          {/* Key Metrics Grid */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Market Overview</h4>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-3 rounded-lg bg-[#111111] border border-[#1e1e1e]">
+                <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
+                  <DollarSign className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>Market Cap</span>
+                </div>
+                <span className="font-mono text-sm font-bold text-white block">
+                  {formatCompactNumber(coin.market_cap)}
+                </span>
+              </div>
 
-      {/* Stats Grid - NEW REFINED CARDS */}
-      <div className="px-3 mt-4 grid grid-cols-2 gap-3">
-        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
-          <div className="text-[9px] tracking-[0.15em] font-bold text-[#8a858f] uppercase">Market Cap</div>
-          <div className="mt-1.5 text-[22px] font-bold tracking-tight">{formatCompactNumber(coin.market_cap)}</div>
-        </div>
-        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
-          <div className="text-[9px] tracking-[0.15em] font-bold text-[#8a858f] uppercase">24H Volume</div>
-          <div className="mt-1.5 text-[22px] font-bold tracking-tight">{formatCompactNumber(coin.total_volume)}</div>
-        </div>
-        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4 text-center">
-          <div className="text-[9px] tracking-[0.15em] font-bold text-[#8a858f] uppercase">Fully Diluted</div>
-          <div className="mt-1.5 text-[22px] font-bold tracking-tight">{formatCompactNumber(coin.market_cap)}</div>
-        </div>
-        <div className="bg-[#121114] border border-[#1e1c20] rounded-[16px] px-4 py-4">
-          <div className="text-[9px] tracking-[0.15em] font-bold text-[#8a858f] uppercase text-center">24H Range</div>
-          <div className="mt-3 h-[6px] rounded-full bg-gradient-to-r from-[#ff5a5a] to-[#00e676]"></div>
-          <div className="mt-2 flex justify-between text-[10px] font-mono text-[#9a959e]"><span>${(coin.low_24h||0).toFixed(4)}</span><span>${(coin.high_24h||0).toFixed(4)}</span></div>
-        </div>
-      </div>
+              <div className="p-3 rounded-lg bg-[#111111] border border-[#1e1e1e]">
+                <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
+                  <Activity className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>24h Volume</span>
+                </div>
+                <span className="font-mono text-sm font-bold text-white block">
+                  {formatCompactNumber(coin.total_volume)}
+                </span>
+              </div>
 
-      {/* Sentiment - REFINED */}
-      <div className="px-4 mt-7">
-        <div className="text-[12px] font-semibold tracking-wide">Community Sentiment</div>
-        <div className="mt-3 h-[28px] rounded-full bg-[#16141a] border border-[#23202a] flex overflow-hidden p-1">
-          <div className="h-full rounded-full bg-[#00d26a] flex items-center px-3 text-[11px] font-bold text-white" style={{width:'51%'}}>51% bull</div>
-          <div className="flex-1 flex items-center justify-end px-3 text-[11px] font-bold text-[#ff9a9a]">49% bear</div>
+              <div className="p-3 rounded-lg bg-[#111111] border border-[#1e1e1e]">
+                <span className="text-neutral-400 text-xs block mb-1">24h High</span>
+                <span className="font-mono text-sm font-bold text-white block">
+                  {formatCurrency(coin.high_24h)}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[#111111] border border-[#1e1e1e]">
+                <span className="text-neutral-400 text-xs block mb-1">24h Low</span>
+                <span className="font-mono text-sm font-bold text-white block">
+                  {formatCurrency(coin.low_24h)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Supply & ATH */}
+          <div className="p-3.5 rounded-xl bg-[#111111] border border-[#1e1e1e] space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-neutral-400">Circulating Supply</span>
+              <span className="font-mono font-medium text-white">
+                {coin.circulating_supply?.toLocaleString() || 'N/A'} {coin.symbol.toUpperCase()}
+              </span>
+            </div>
+            {coin.total_supply && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-400">Total Supply</span>
+                <span className="font-mono font-medium text-white">
+                  {coin.total_supply?.toLocaleString()} {coin.symbol.toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-[#1c1c1c]">
+              <span className="text-neutral-400">All-Time High</span>
+              <span className="font-mono font-semibold text-white">
+                {formatCurrency(coin.ath)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel Footer */}
+        <div className="p-4 border-t border-[#1c1c1c] bg-[#0E0E0E]">
+          <button
+            onClick={() => {
+              onViewFullPage(coin);
+              onClose();
+            }}
+            className="w-full py-2.5 px-4 rounded-xl bg-[#1a1a1a] hover:bg-[#252525] border border-[#333333] text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+          >
+            <BarChart2 className="w-4 h-4 text-emerald-400" />
+            <span>Open Detailed Analysis Page</span>
+            <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
