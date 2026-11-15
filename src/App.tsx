@@ -165,12 +165,12 @@ export default function App() {
         )}
         {currentRoute === 'heatmap' && (
           <div className="w-full bg-transparent flex flex-col">
-            {currentRoute === 'heatmap' && <div className={mobileTab === 'tables' ? 'hidden md:block' : 'block'}><TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} /></div>}
-            <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden md:block' : 'block'}`}>
-              {isLoading ? <BubbleSkeleton /> : <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={handleOpenRightPanel} />}
+            {currentRoute === 'heatmap' && <div className={mobileTab === 'tables' ? 'hidden' : 'block'}><TimeFilterBar timeFrame={timeFrame} setTimeFrame={setTimeFrame} /></div>}
+            <div className={`relative z-10 w-full overflow-hidden ${mobileTab === 'tables' ? 'hidden' : 'block'}`}>
+              {isLoading ? <BubbleSkeleton /> : <BubbleCanvas coins={bubbleCoins} timeFrame={timeFrame} searchQuery={searchQuery} theme={theme} onSelectCoin={(coin) => { if (window.innerWidth < 768) { handleOpenFullCoinPage(coin); } else { handleOpenRightPanel(coin); } }} />}
             </div>
-            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden md:block' : 'flex flex-col pb-2'}`}>
-              {isLoading ? <TableSkeleton /> : <MarketTable coins={filteredCoins} onSelectCoin={handleOpenRightPanel} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />}
+            <div className={`relative z-10 w-full bg-[#000000]/80 backdrop-blur-md pt-6 ${mobileTab === 'bubbles' ? 'hidden' : 'flex flex-col pb-2'}`}>
+              {isLoading ? <TableSkeleton /> : <MarketTable coins={filteredCoins} onSelectCoin={(coin) => { if (window.innerWidth < 768) { handleOpenFullCoinPage(coin); } else { handleOpenRightPanel(coin); } }} searchQuery={searchQuery} favorites={favorites} onToggleFavorite={handleToggleFavorite} />}
             </div>
           </div>
         )}
