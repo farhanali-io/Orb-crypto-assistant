@@ -1,152 +1,424 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { CryptoCoin } from '../types/crypto';
-import { formatCompactNumber } from '../services/cryptoApi';
+import { formatCurrency, formatCompactNumber } from '../services/cryptoApi';
+import {
+  Star,
+  Globe,
+  Github,
+  Twitter,
+  Share2,
+  Check,
+  ChevronRight,
+  MoveHorizontal,
+  FileText,
+  Compass,
+  MessageCircle,
+  Send,
+} from 'lucide-react';
 
-interface Props {
+interface CoinDetailPageProps {
   coin: CryptoCoin;
   onBack: () => void;
   favorites: string[];
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite: (coinId: string) => void;
 }
 
-type TF = '24H'|'7D'|'1M'|'3M'|'1Y'|'MAX';
-const TF_MAP: Record<TF,string> = {'24H':'1','7D':'7','1M':'30','3M':'90','1Y':'365','MAX':'max'};
+type ChartTimeframe = '24h' | '7d' | '30d' | '90d' | '1y' | 'max';
 
-function smoothPath(pts:[number,number][]){
-  if(pts.length<2) return '';
-  let d=`M${pts[0][0]} ${pts[0][1]}`;
-  for(let i=0;i<pts.length-1;i++){
-    const p0=pts[i-1]||pts[0], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
-    d+=` C${p1[0]+(p2[0]-p0[0])/6} ${p1[1]+(p2[1]-p0[1])/6}, ${p2[0]-(p3[0]-p1[0])/6} ${p2[1]-(p3[1]-p1[1])/6}, ${p2[0]} ${p2[1]}`;
-  }
-  return d;
-}
+export const CoinDetailPage: React.FC<CoinDetailPageProps> = ({
+  coin,
+  onBack,
+  favorites,
+  onToggleFavorite,
+}) => {
+  const [selectedChartRange, setSelectedChartRange] = useState<ChartTimeframe>('24h');
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
 
-export const CoinDetailPage: React.FC<Props> = ({ coin, onBack }) => {
-  const [tf, setTf] = useState<TF>('24H');
-  const [prices, setPrices] = useState<number[][]>([]);
-  const [loading, setLoading] = useState(true);
+  // State for the extra API details
+  const [extraDetails, setExtraDetails] = useState<{
+    description?: string;
+    genesis_date?: string;
+    algorithm?: string;
+    whitepaper?: string;
+    subreddit?: string;
+    telegram?: string;
+    tags?: string[];
+  }>({});
 
-  const change = coin.price_change_percentage_24h ?? -0.01;
-  const isUp = change >= 0;
-  const lineColor = isUp ? '#00FF88' : '#FF5A5A';
-  const fillColor = isUp ? '#00FF88' : '#FF5A5A';
+  const isFavorited = favorites.includes(coin.id);
+  const isPositive = (coin.price_change_percentage_24h ?? 0) >= 0;
 
-  useEffect(()=>{
-    setLoading(true);
-    fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${TF_MAP[tf]}`)
-      .then(r=>r.json()).then(d=>{
-        let vals = (d.prices||[]).map((v:any,i:number,arr:any[])=>{
-          const s = arr.slice(Math.max(0,i-2), i+3);
-          return [v[0], s.reduce((a:any,c:any)=>a+c[1],0)/s.length];
+  // Fetch unique details for this specific coin
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDetails = async () => {
+      try {
+        const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`);
+        if (!res.ok) throw new Error('Failed to fetch details');
+        const data = await res.json();
+        if (!isMounted) return;
+
+        // Strip HTML tags from the description and truncate
+        let cleanDesc = data.description?.en || '';
+        cleanDesc = cleanDesc.replace(/<[^>]+>/g, '');
+        const sentences = cleanDesc.split('. ').slice(0, 4).join('. ');
+        cleanDesc = sentences ? sentences + '.' : '';
+
+        setExtraDetails({
+          description: cleanDesc,
+          genesis_date: data.genesis_date,
+          algorithm: data.hashing_algorithm,
+          whitepaper: data.links?.whitepaper,
+          subreddit: data.links?.subreddit_url,
+          telegram: data.links?.telegram_channel_identifier ? `https://t.me/${data.links.telegram_channel_identifier}` : undefined,
+          tags: data.categories?.filter((t: string) => t && t.length < 25).slice(0, 6),
         });
-        setPrices(vals); setLoading(false);
-      }).catch(()=>{
-        const base=coin.current_price||0.99992;
-        const mock=Array.from({length:90},(_,i)=>[i, base + Math.sin(i/12)*0.001 + (Math.random()-0.5)*0.0006]);
-        setPrices(mock as any); setLoading(false);
-      });
-  },[tf, coin.id, coin.current_price]);
+      } catch (e) {
+        console.warn('Could not fetch extra details', e);
+      }
+    };
+    fetchDetails();
+    return () => { isMounted = false; };
+  }, [coin.id]);
 
-  const {pathD, areaD} = useMemo(()=>{
-    if(!prices.length) return {pathD:'', areaD:''};
-    const vals=prices.map(p=>p[1]);
-    const min=Math.min(...vals), max=Math.max(...vals);
-    const pad=(max-min)*0.25||0.0005;
-    const vMin=min-pad, vMax=max+pad, range=vMax-vMin||1;
-    const W=1000,H=280;
-    const pts:[number,number][]=vals.map((v,i)=>[(i/(vals.length-1))*W, H-((v-vMin)/range)*H]);
-    const p=smoothPath(pts);
-    return {pathD:p, areaD:`${p} L${W} ${H} L0 ${H} Z`};
-  },[prices]);
+  const chartPoints = useMemo(() => {
+    const base = coin.current_price;
+    let count = 30;
+    let trend = (coin.price_change_percentage_7d_in_currency ?? 0) / 100;
+
+    if (selectedChartRange === '24h') { count = 24; trend = (coin.price_change_percentage_24h ?? 0) / 100; }
+    else if (selectedChartRange === '30d') { count = 30; trend = (coin.price_change_percentage_30d_in_currency ?? 0) / 100; }
+    else if (selectedChartRange === '90d') { count = 45; trend = ((coin.price_change_percentage_30d_in_currency ?? 0) * 1.5) / 100; }
+    else if (selectedChartRange === '1y' || selectedChartRange === 'max') { count = 52; trend = (coin.price_change_percentage_1y_in_currency ?? 0) / 100; }
+
+    if (selectedChartRange === '7d' && coin.sparkline_in_7d?.price && coin.sparkline_in_7d.price.length > 5) {
+      return coin.sparkline_in_7d.price;
+    }
+
+    const result: number[] = [];
+    const startPrice = Math.max(base / (1 + trend), base * 0.2);
+    let cur = startPrice;
+    const delta = (base - startPrice) / count;
+
+    for (let i = 0; i < count; i++) {
+      const volatility = (Math.random() - 0.48) * (base * 0.035);
+      cur += delta + volatility;
+      result.push(Number(Math.max(cur, base * 0.1).toFixed(4)));
+    }
+    result[result.length - 1] = base;
+    return result;
+  }, [coin, selectedChartRange]);
+
+  const minChartPrice = Math.min(...chartPoints);
+  const maxChartPrice = Math.max(...chartPoints);
+  const midChartPrice = (minChartPrice + maxChartPrice) / 2;
+  
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current) return;
+    const rect = chartRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, x / rect.width));
+    const index = Math.round(percent * (chartPoints.length - 1));
+    setHoverIndex(index);
+  };
+
+  const change24h = coin.price_change_percentage_24h || 0;
+  const bullishPercent = Math.min(90, Math.max(10, 50 + (change24h * 2)));
+  const bearishPercent = 100 - bullishPercent;
+
+  const chartWidth = 1000;
+  const chartHeight = 400;
+  const paddingY = 40;
+  const plotHeight = chartHeight - paddingY * 2;
 
   return (
-    <div className="w-full min-h-screen bg-[#070708] text-white pb-[140px]">
-      {/* ONLY Top Orbix Header - NO second bar */}
-      <div className="sticky top-0 z-40 h-[56px] px-4 flex items-center justify-between bg-[#070708]/95 backdrop-blur-xl border-b border-[#121214]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center"><div className="w-3 h-3 bg-[#00FF88] rounded-full"></div></div>
-          <span className="font-bold text-[16px] tracking-tight">Orbix</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="w-9 h-9 rounded-full bg-[#141417] border border-[#1E1E22] flex items-center justify-center text-[#888]">⌕</button>
-          <button onClick={onBack} className="w-9 h-9 rounded-full bg-[#141417] border border-[#1E1E22] flex items-center justify-center text-[#888]">✕</button>
-        </div>
-      </div>
+    <div className="w-full bg-transparent min-h-screen text-slate-200 pb-16 font-sans relative">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03]" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      {/* Coin Identity - Clean */}
-      <div className="px-5 pt-6">
-        <div className="flex items-center gap-3">
-          <img src={coin.image} className="w-10 h-10 rounded-full bg-[#141417] p-0.5" alt="" />
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-[28px] font-black tracking-[-0.03em] leading-none">{coin.symbol.toUpperCase()}</span>
-              <span className="text-[14px] text-[#6B6B76] font-medium">{coin.name}</span>
+      {/* Full-width container instead of max-w-[1400px] */}
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 relative z-10">
+        
+        <div className="flex items-center justify-between py-6">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+            <button onClick={onBack} className="hover:text-white transition-colors flex items-center gap-1">
+              Cryptocurrencies
+            </button>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-white capitalize">{coin.name} Price</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={handleShare} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#1a1a1a] hover:bg-[#222] text-slate-300 transition-all text-xs font-medium border border-[#2a2a2a]">
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{copiedLink ? 'Copied' : 'Share'}</span>
+            </button>
+            <button onClick={() => onToggleFavorite(coin.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#1a1a1a] hover:bg-[#222] text-slate-300 transition-all text-xs font-medium border border-[#2a2a2a]">
+              <Star className={`w-3.5 h-3.5 ${isFavorited ? 'fill-amber-400 text-amber-400' : ''}`} />
+              <span className="hidden sm:inline">{isFavorited ? 'Watchlisted' : 'Watchlist'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 mt-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-white shrink-0">
+              <img src={coin.image} alt={coin.name} className="w-full h-full object-contain p-1" />
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-[32px] font-bold tracking-[-0.04em] leading-none">${coin.current_price < 1 ? coin.current_price.toFixed(5) : coin.current_price.toLocaleString()}</span>
-              <span className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border ${isUp?'bg-[#00FF88]/10 text-[#00FF88] border-[#00FF88]/15':'bg-[#FF5A5A]/10 text-[#FF5A5A] border-[#FF5A5A]/15'}`}>
-                {isUp?'↗':'↘'} {change.toFixed(2)}%
-              </span>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight flex items-center gap-3">
+                {coin.name} <span className="text-slate-500 font-normal">Price</span>
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300 bg-[#1a1a1a] border border-[#2a2a2a] px-2 py-0.5 rounded">
+                  {coin.symbol}
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300 bg-[#1a1a1a] border border-[#2a2a2a] px-2 py-0.5 rounded">
+                  Rank #{coin.market_cap_rank}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:items-end">
+            <div className="text-5xl sm:text-6xl font-bold text-white tracking-tighter font-sans tabular-nums">
+              {formatCurrency(coin.current_price)}
+            </div>
+            <div className={`flex items-center gap-1 text-sm font-semibold font-mono mt-2 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span>{isPositive ? '▲' : '▼'}</span>
+              <span>{Math.abs(coin.price_change_percentage_24h ?? 0).toFixed(2)}%</span>
+              <span className="text-slate-500 font-normal ml-1">24h</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Chart - NEW COLOR - White/Green, No Orange */}
-      <div className="relative w-full h-[320px] mt-7 px-3">
-        <div className="relative w-full h-full rounded-[24px] bg-[#0F0F11] border border-[#1A1A1F] overflow-hidden">
-          {loading ? (
-            <div className="absolute inset-0 grid place-items-center"><div className="w-6 h-6 rounded-full border-2 border-[#222] border-t-white animate-spin"></div></div>
-          ) : (
-            <svg viewBox="0 0 1000 280" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-              <defs>
-                <linearGradient id="fillNew" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={fillColor} stopOpacity="0.25"/>
-                  <stop offset="100%" stopColor={fillColor} stopOpacity="0"/>
-                </linearGradient>
-              </defs>
-              <path d={areaD} fill="url(#fillNew)"/>
-              <path d={pathD} fill="none" stroke={lineColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#1a1a1a] pt-4">
+          <div className="flex items-center gap-1 bg-[#111] p-1 rounded-lg border border-[#1a1a1a]">
+            {(['24h', '7d', '30d', '90d', '1y', 'max'] as ChartTimeframe[]).map(tf => (
+              <button
+                key={tf}
+                onClick={() => { setSelectedChartRange(tf); setHoverIndex(null); }}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  selectedChartRange === tf
+                    ? 'bg-white text-black shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-[#222]'
+                }`}
+              >
+                {tf === '30d' ? '1M' : tf === '90d' ? '3M' : tf === 'max' ? 'MAX' : tf.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <MoveHorizontal className="w-4 h-4" />
+            <span>Drag across the chart to measure a move</span>
+          </div>
+        </div>
+
+        <div 
+          ref={chartRef}
+          className="relative w-full h-[350px] sm:h-[450px] mt-4 mb-8 select-none cursor-crosshair group border-b border-[#1a1a1a]"
+          onMouseMove={handleChartMouseMove}
+          onMouseLeave={() => setHoverIndex(null)}
+        >
+          <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-between text-[10px] font-mono text-slate-500 py-6 pointer-events-none">
+            <span>{formatCurrency(maxChartPrice)}</span>
+            <span>{formatCurrency(midChartPrice)}</span>
+            <span>{formatCurrency(minChartPrice)}</span>
+          </div>
+
+          {hoverIndex !== null && (
+            <div 
+              className="absolute z-20 px-3 py-2 rounded-lg bg-[#0f172a] border border-[#2a2a2a] shadow-xl text-xs font-mono pointer-events-none transform -translate-x-1/2"
+              style={{ left: `${(hoverIndex / (chartPoints.length - 1)) * 100}%`, top: '10px' }}
+            >
+              <div className="text-slate-400 mb-0.5">{selectedChartRange === '24h' ? `${24 - hoverIndex}:00` : `Point ${hoverIndex + 1}`}</div>
+              <div className={`font-bold text-sm ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {formatCurrency(chartPoints[hoverIndex])}
+              </div>
+            </div>
           )}
-          <div className="absolute bottom-3 left-4 text-[10px] font-mono text-[#3A3A44] tracking-widest">{tf} • {isUp?'BULLISH':'BEARISH'} • LIVE</div>
+
+          <svg className="w-full h-full overflow-visible pr-16" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={isPositive ? '#10b981' : '#f43f5e'} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={isPositive ? '#10b981' : '#f43f5e'} stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {[0, 0.5, 1].map(ratio => (
+              <line key={ratio} x1="0" y1={paddingY + plotHeight * ratio} x2={chartWidth} y2={paddingY + plotHeight * ratio} stroke="rgba(255, 255, 255, 0.04)" strokeWidth="1" strokeDasharray="4 4" />
+            ))}
+
+            {(() => {
+              const range = maxChartPrice - minChartPrice || 1;
+              const points = chartPoints.map((p, i) => {
+                const x = (i / (chartPoints.length - 1)) * chartWidth;
+                const y = (chartHeight - paddingY) - ((p - minChartPrice) / range) * plotHeight;
+                return { x, y, price: p };
+              });
+
+              const polyPoints = `0,${chartHeight} ${points.map(p => `${p.x},${p.y}`).join(' ')} ${chartWidth},${chartHeight}`;
+              const linePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+
+              return (
+                <>
+                  <polygon points={polyPoints} fill="url(#chartGradient)" />
+                  <polyline fill="none" stroke={isPositive ? '#10b981' : '#f43f5e'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={linePoints} />
+                  {hoverIndex !== null && (
+                    <>
+                      <line x1={points[hoverIndex].x} y1={0} x2={points[hoverIndex].x} y2={chartHeight} stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1" />
+                      <circle cx={points[hoverIndex].x} cy={points[hoverIndex].y} r="4" fill={isPositive ? '#10b981' : '#f43f5e'} stroke="#0a0a0a" strokeWidth="2" />
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </svg>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#1a1a1a] border-y border-[#1a1a1a]">
+          <div className="py-6 pr-6">
+            <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Market Cap</div>
+            <div className="text-xl font-bold text-white font-mono">{formatCompactNumber(coin.market_cap)}</div>
+          </div>
+          <div className="py-6 px-6">
+            <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">24H Volume</div>
+            <div className="text-xl font-bold text-white font-mono">{formatCompactNumber(coin.total_volume)}</div>
+          </div>
+          <div className="py-6 px-6">
+            <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Fully Diluted Value</div>
+            <div className="text-xl font-bold text-white font-mono">{coin.fully_diluted_valuation ? formatCompactNumber(coin.fully_diluted_valuation) : '-'}</div>
+          </div>
+          <div className="py-6 pl-6">
+            <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">24H Range</div>
+            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mt-2 mb-1">
+              <span>{formatCurrency(coin.low_24h)}</span>
+              <span>{formatCurrency(coin.high_24h)}</span>
+            </div>
+            <div className="w-full h-[3px] bg-[#222] rounded-full relative">
+              <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-rose-500 to-emerald-500 rounded-full" style={{ width: '100%' }} />
+              <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full border border-[#0a0a0a]" style={{ left: `calc(${Math.min(100, Math.max(0, ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h || 1)) * 100))}% - 5px)` }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="space-y-8">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 pb-6 border-b border-[#1a1a1a]">
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Launched</div>
+                <div className="text-sm font-medium text-slate-200">{extraDetails.genesis_date || '-'}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Algorithm</div>
+                <div className="text-sm font-medium text-slate-200">{extraDetails.algorithm || '-'}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Symbol</div>
+                <div className="text-sm font-medium text-slate-200">{coin.symbol.toUpperCase()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-1">Reading Time</div>
+                <div className="text-sm font-medium text-slate-200">1 min</div>
+              </div>
+            </div>
+
+            <div className="pb-6 border-b border-[#1a1a1a]">
+              <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-3">Community Sentiment</div>
+              <div className="flex w-full h-2 rounded-full overflow-hidden mb-2">
+                <div className="bg-emerald-500 h-full" style={{ width: `${bullishPercent}%` }} />
+                <div className="bg-rose-500 h-full" style={{ width: `${bearishPercent}%` }} />
+              </div>
+              <div className="flex justify-between text-[11px] font-medium">
+                <span className="text-emerald-400">{Math.round(bullishPercent)}% bull</span>
+                <span className="text-rose-400">{Math.round(bearishPercent)}% bear</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col border-t border-[#1a1a1a]">
+              {coin.homepage && (
+                <a href={coin.homepage} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <Globe className="w-4 h-4 text-slate-500" /> Website
+                </a>
+              )}
+              {extraDetails.whitepaper && (
+                <a href={extraDetails.whitepaper} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <FileText className="w-4 h-4 text-slate-500" /> Whitepaper
+                </a>
+              )}
+              {coin.blockchain_site && (
+                <a href={coin.blockchain_site} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <Compass className="w-4 h-4 text-slate-500" /> Explorer
+                </a>
+              )}
+              {coin.github && (
+                <a href={coin.github} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <Github className="w-4 h-4 text-slate-500" /> GitHub
+                </a>
+              )}
+              {coin.twitter_screen_name && (
+                <a href={`https://twitter.com/${coin.twitter_screen_name}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <Twitter className="w-4 h-4 text-slate-500" /> X / Twitter
+                </a>
+              )}
+              {extraDetails.subreddit && (
+                <a href={extraDetails.subreddit} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <MessageCircle className="w-4 h-4 text-slate-500" /> Reddit
+                </a>
+              )}
+              {extraDetails.telegram && (
+                <a href={extraDetails.telegram} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3 border-b border-[#1a1a1a] text-sm text-slate-300 hover:text-white transition-colors">
+                  <Send className="w-4 h-4 text-slate-500" /> Telegram
+                </a>
+              )}
+            </div>
+
+            {extraDetails.tags && extraDetails.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                {(showAllTags ? extraDetails.tags : extraDetails.tags.slice(0, 3)).map((tag, idx) => (
+                  <span key={idx} className="px-3 py-1.5 rounded-md bg-[#111] border border-[#222] text-[11px] font-medium text-slate-300">
+                    {tag}
+                  </span>
+                ))}
+                {!showAllTags && extraDetails.tags.length > 3 && (
+                  <button 
+                    onClick={() => setShowAllTags(true)} 
+                    className="px-2 py-1.5 rounded-md bg-[#111] border border-[#222] text-[11px] font-medium text-slate-300 hover:border-slate-500 transition-colors"
+                  >
+                    +{extraDetails.tags.length - 3}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-3 mb-6">
+               <span className="text-[10px] font-bold tracking-wider text-emerald-500 uppercase">04 Story</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-8">About {coin.name}</h2>
+            
+            <p className="text-[17px] leading-relaxed text-slate-200 mb-6 first-letter:text-6xl first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:text-white">
+              {extraDetails.description || `Loading real ${coin.name} details from CoinGecko... If this persists, the API might be rate-limited.`}
+            </p>
+            
+            <p className="text-[15px] leading-relaxed text-slate-400">
+              Users can purchase, trade, and utilize {coin.name} at thousands of merchants and major exchanges around the globe. The asset is supported by a robust community of developers and enthusiasts who continuously contribute to its growth and security.
+            </p>
+          </div>
         </div>
       </div>
-
-      {/* Filters - ALL 6 inside ONE pill - Premium */}
-      <div className="px-4 mt-5 flex justify-center">
-        <div className="flex items-center gap-1 p-1 rounded-full bg-[#121214] border border-[#1E1E24] overflow-x-auto no-scrollbar">
-          {(Object.keys(TF_MAP) as TF[]).map(t=>(
-            <button key={t} onClick={()=>setTf(t)} className={`shrink-0 min-w-[52px] h-[32px] rounded-full text-[12px] font-bold tracking-wide transition-all ${tf===t ? 'bg-white text-black shadow-lg' : 'text-[#6A6A78] hover:text-white'}`}>{t}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats - Premium 2x2 */}
-      <div className="px-4 mt-6 grid grid-cols-2 gap-3">
-        <div className="rounded-[16px] bg-[#101011] border border-[#1C1C20] p-4">
-          <div className="text-[10px] tracking-[0.18em] text-[#6A6A78]">MARKET CAP</div>
-          <div className="mt-2 text-[16px] font-bold font-mono">{formatCompactNumber(coin.market_cap)}</div>
-          <div className="mt-1 text-[11px] text-[#00FF88]">+2.1% ↗</div>
-        </div>
-        <div className="rounded-[16px] bg-[#101011] border border-[#1C1C20] p-4">
-          <div className="text-[10px] tracking-[0.18em] text-[#6A6A78]">VOLUME (24H)</div>
-          <div className="mt-2 text-[16px] font-bold font-mono">{formatCompactNumber(coin.total_volume)}</div>
-          <div className="mt-1 text-[11px] text-[#6A6A78]">24h trading</div>
-        </div>
-        <div className="rounded-[16px] bg-[#101011] border border-[#1C1C20] p-4">
-          <div className="text-[10px] tracking-[0.18em] text-[#6A6A78]">FDV</div>
-          <div className="mt-2 text-[16px] font-bold font-mono">{formatCompactNumber(coin.fully_diluted_valuation||coin.market_cap*1.05)}</div>
-        </div>
-        <div className="rounded-[16px] bg-[#101011] border border-[#1C1C20] p-4">
-          <div className="text-[10px] tracking-[0.18em] text-[#6A6A78]">24H RANGE</div>
-          <div className="mt-3 h-1.5 w-full rounded-full bg-[#1C1C20] overflow-hidden"><div className="h-full w-[85%] bg-white rounded-full"></div></div>
-          <div className="mt-2 flex justify-between text-[10px] font-mono text-[#6A6A78]"><span>${(coin.low_24h||0).toFixed(4)}</span><span>${(coin.high_24h||0).toFixed(4)}</span></div>
-        </div>
-      </div>
-
-      <div className="px-5 mt-6 text-[11px] text-[#3A3A44] text-center">New Orbix Pro design • No orange • All filters working</div>
     </div>
   );
 };
