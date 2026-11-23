@@ -1,3 +1,5 @@
+const CG_KEYS_B = (import.meta.env.VITE_CG_KEYS as string || '').split(',').map(s=>s.trim()).filter(Boolean);
+const KEY_BUBBLES = CG_KEYS_B[0] || '';
 import { CryptoCoin, MarketGlobalStats } from '../types/crypto';
 import { getFullTop100Coins } from '../data/top100Coins';
 
@@ -129,7 +131,7 @@ export async function fetchTop100Coins(forceRefresh = false): Promise<{ coins: C
     } catch {}
   }
 
-  const { key, type } = getStoredApiKey();
+  const key = KEY_BUBBLES; const type = 'demo'; // KEY 1 = Bubbles only
   
   // 1. Attempt CoinGecko live request
   try {
