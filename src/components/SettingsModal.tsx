@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Palette className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Orbix Settings</h2>
+              <h2 className="text-base font-bold text-white">Farhan Crypto Currency Settings</h2>
               <p className="text-xs text-neutral-400">Choose visual bubble color palette</p>
             </div>
           </div>

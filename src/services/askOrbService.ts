@@ -153,12 +153,12 @@ function answerEducation(q: string): string | null {
 }
 function isClearlyOffTopic(q: string): boolean { return /\b(weather|capital of|president of|recipe|football|soccer|cricket|homework|math problem|write me a poem|translate this|who won the election|movie recommendation)\b/i.test(q); }
 function buildCompareTable(list: any[], label: string, field: string) {
-  const fmtPct = (c) => { const v = c[field]; if (typeof v !== 'number' || !Number.isFinite(v)) return 'N/A'; return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; };
+  const fmtPct = (c: Record<string, any>) => { const v = c[field]; if (typeof v !== 'number' || !Number.isFinite(v)) return 'N/A'; return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; };
   const syms = list.map((c) => c.symbol.toUpperCase());
   const header = '| Metric | ' + syms.join(' | ') + ' |';
   const sep = '|---|' + '---:|'.repeat(list.length);
   const rowPrice = '| Price | ' + list.map((c) => '$' + Number(c?.current_price ?? 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 8})).join(' | ') + ' |';
-  const rowCap = '| Market cap | ' + list.map((c) => { try { return formatMarketCap(c?.market_cap ?? 0); } catch(e) { return '$' + Number(c?.market_cap ?? 0).toLocaleString(); } }).join(' | ') + ' |';
+  const rowCap = '| Market cap | ' + list.map((c) => { try { return '$' + formatCompact(Number(c?.market_cap ?? 0)); } catch { return '$' + Number(c?.market_cap ?? 0).toLocaleString(); } }).join(' | ') + ' |';
   const rowRank = '| Rank | ' + list.map((c) => '#' + (c?.market_cap_rank ?? 'N/A')).join(' | ') + ' |';
   const rowChg = '| ' + label + ' | ' + list.map(fmtPct).join(' | ') + ' |';
   const titles = list.map((c) => c.name + ' (' + c.symbol.toUpperCase() + ')').join(' vs ');

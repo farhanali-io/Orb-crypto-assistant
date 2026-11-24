@@ -131,7 +131,7 @@ export async function fetchTop100Coins(forceRefresh = false): Promise<{ coins: C
     } catch {}
   }
 
-  const key = KEY_BUBBLES; const type = 'demo'; // KEY 1 = Bubbles only
+  const key = KEY_BUBBLES; const type = 'demo' as 'demo' | 'pro'; // KEY 1 = Bubbles only
   
   // 1. Attempt CoinGecko live request
   try {

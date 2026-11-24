@@ -123,7 +123,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
             ? 'text-white'
             : ' text-[#8A8A8A] hover:text-white'
         }`}
-        title="About Orbix"
+        title="About Farhan Crypto Currency"
       >
         { isAboutActive && (<motion.div layoutId="orb-bottom-pill" transition={{ type: 'spring', stiffness: 400, damping: 32 }} className="absolute inset-0 bg-[#2D2D2D] rounded-full" />) }
         <Info className="w-5 h-5 shrink-0 relative z-10" />

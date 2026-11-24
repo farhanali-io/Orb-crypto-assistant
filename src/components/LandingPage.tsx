@@ -124,7 +124,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
       </div>
       <div ref={uiRef} className="absolute inset-0 z-30 flex flex-col items-center justify-end pb-24 px-4 pointer-events-none">
         <div className="text-center pointer-events-auto bg-black/60 backdrop-blur-xl p-8 md:p-10 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">ORBIX <span className="text-[#00FF88]">LIFTOFF</span></h1>
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tighter mb-4">FARHAN CRYPTO CURRENCY <span className="text-[#00FF88]">LIFTOFF</span></h1>
           <p className="text-neutral-400 max-w-md mx-auto text-sm md:text-base mb-8 font-medium">The crypto market visualized in zero gravity. Press ignition to begin the launch sequence.</p>
           <button onClick={handleLaunch} disabled={isLaunching} className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#00FF88] text-black font-black text-sm tracking-widest uppercase rounded-full transition-all hover:scale-105 hover:bg-white hover:shadow-[0_0_60px_rgba(0,255,136,0.8)] overflow-hidden disabled:opacity-50">
             <Flame className="w-5 h-5 group-hover:animate-bounce" /><span className="relative z-10">{isLaunching ? 'Launching...' : 'Initiate Launch'}</span><Rocket className="w-5 h-5 relative z-10 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />

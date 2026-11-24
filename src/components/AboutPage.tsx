@@ -55,16 +55,16 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111] border border-[#222] mb-8">
             <Circle className="w-2.5 h-2.5 fill-emerald-500 text-emerald-500" />
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-400">
-              About Orbix
+              About Farhan Crypto Currency
             </span>
           </div>
           
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white uppercase tracking-tight leading-[1.1] mb-8">
-            About Orbix - Live Crypto <br className="hidden md:block" /> Bubble Chart
+            About Farhan Crypto Currency - Live Crypto <br className="hidden md:block" /> Bubble Chart
           </h1>
           
           <p className="text-base sm:text-lg text-slate-400 leading-relaxed max-w-2xl mb-8">
-            Orbix turns the crypto market into a picture. Every coin is a bubble. Large bubbles are the heavyweights, small ones are the long tail, and the color shows which way each coin is moving. You can read the whole market in a few seconds instead of scrolling through a table of 1,000 rows.
+            Farhan Crypto Currency turns the crypto market into a picture. Every coin is a bubble. Large bubbles are the heavyweights, small ones are the long tail, and the color shows which way each coin is moving. You can read the whole market in a few seconds instead of scrolling through a table of 1,000 rows.
           </p>
 
           <button 
@@ -83,7 +83,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 mb-24">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white uppercase tracking-wider mb-6">
-              Why We Built Orbix
+              Why We Built Farhan Crypto Currency
             </h2>
             <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
               Most crypto trackers are built around tables. Tables are precise, but they hide the shape of the market.
@@ -131,7 +131,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
               Where Our Data <br className="hidden md:block" /> Comes From.
             </h2>
             <p className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-              Every number on Orbix comes from an established market data provider, refreshed while you watch.
+              Every number on Farhan Crypto Currency comes from an established market data provider, refreshed while you watch.
             </p>
           </div>
 

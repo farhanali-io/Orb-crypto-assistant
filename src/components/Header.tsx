@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-300 flex items-center justify-center p-0.5">
                 <div className="w-full h-full bg-black rounded-full flex items-center justify-center"><div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div></div>
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">Orbix</span>
+              <span className="text-sm sm:text-xl font-bold tracking-tight text-white whitespace-nowrap">Farhan Crypto Currency</span>
             </div>
 
             {isHeatmap && onTabChange && (

@@ -2,10 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import Groq from 'groq-sdk'; // ✅ ADDED: Line 6 - Import Groq
+import Groq from 'groq-sdk';
 
 dotenv.config();
 
@@ -14,9 +12,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-
-// ✅ ADDED: Line 14 - Initialize Groq Client
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Mount JSON parser specifically for /api routes
 app.use('/api', express.json({ limit: '10mb' }));
@@ -44,7 +39,7 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
     const g3 = ctx.topGainers[2];
     const line1 = `Today's top gainers are ${g1?.name || 'Token'} (+${(g1?.price_change_percentage_24h ?? 0).toFixed(1)}%), ${g2?.name || 'Token'} (+${(g2?.price_change_percentage_24h ?? 0).toFixed(1)}%), and ${g3?.name || 'Token'} (+${(g3?.price_change_percentage_24h ?? 0).toFixed(1)}%).`;
     const line2 = `These coins lead market momentum while the Top 100 average 24h change is ${ctx.avgChange >= 0 ? '+' : ''}${ctx.avgChange.toFixed(2)}%.`;
-    const line3 = `Their bubbles glow bright green on Orbix reflecting strong upward buy volume.`;
+    const line3 = `Their bubbles glow bright green on Farhan Crypto Currency reflecting strong upward buy volume.`;
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
@@ -63,7 +58,7 @@ function computeServerFallback(cleanQ: string, ctx: any): string {
   if (q.includes('market cap') || q.includes('market capitalization') || q.includes('what is cap')) {
     const line1 = `Market capitalization represents a cryptocurrency's current price multiplied by its total circulating supply.`;
     const line2 = `The combined market cap of the Top 100 coins currently stands at ${formatCompact(ctx.totalMarketCap)}.`;
-    const line3 = `On Orbix, bubble sizes directly scale with market cap so higher-valued coins appear larger.`;
+    const line3 = `On Farhan Crypto Currency, bubble sizes directly scale with market cap so higher-valued coins appear larger.`;
     return `${line1}\n${line2}\n${line3}\nNot financial advice.`;
   }
 
@@ -150,12 +145,12 @@ app.post('/api/ask-orb', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
-    const systemInstruction = `You are Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap.
+    const systemInstruction = `You are Orb, the crypto AI assistant for Farhan Crypto Currency Top 100 Bubble Heatmap.
 Follow these rules strictly:
 1. Handle small talk naturally:
    - Greetings (hi/hello/hey) → friendly greeting + ask what crypto they want to know about.
    - "how are you" → respond briefly as an AI assistant and pivot to crypto.
-   - "can we talk" / "tell me about yourself" → say you're Ask Orb, an AI assistant for the Orbix Top 100 bubble heatmap, and invite a crypto question.
+   - "can we talk" / "tell me about yourself" → say you're Ask Orb, an AI assistant for the Farhan Crypto Currency Top 100 bubble heatmap, and invite a crypto question.
    Do NOT dump market data unless the user asks about the market.
 2. Otherwise, answer the user's question in EXACTLY 3 simple, direct lines using the provided live CoinGecko market data only.
 3. If the user asks a follow-up question (e.g., "its monthly change?", "how about 30 days?"), look at the previous conversation to know which coin they mean. If no coin is clearly referenced, ask "Which coin would you like to know about?" Do NOT default to BTC or ETH unless the user explicitly asks.
@@ -191,24 +186,28 @@ Follow these rules strictly:
       }
     }
 
-    // --- Attempt 2: Groq (Backup) --- ✅ ADDED: Lines 203-220
-    try {
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: cleanQ },
-        ],
-        model: 'openai/gpt-oss-120b',
-      });
+    // --- Attempt 2: Groq (Backup) ---
+    const groqApiKey = process.env.GROQ_API_KEY || '';
+    if (groqApiKey && !groqApiKey.startsWith('MY_')) {
+      try {
+        const groq = new Groq({ apiKey: groqApiKey });
+        const chatCompletion = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: cleanQ },
+          ],
+          model: 'openai/gpt-oss-120b',
+        });
 
-      let text = chatCompletion.choices[0]?.message?.content || '';
-      text = text.trim();
-      if (!text.toLowerCase().includes('not financial advice')) {
-        text += '\nNot financial advice.';
+        let text = chatCompletion.choices[0]?.message?.content || '';
+        text = text.trim();
+        if (!text.toLowerCase().includes('not financial advice')) {
+          text += '\nNot financial advice.';
+        }
+        return res.json({ text });
+      } catch (groqError) {
+        console.warn('Groq API also failed, using local fallback:', groqError);
       }
-      return res.json({ text });
-    } catch (groqError) {
-      console.warn('Groq API also failed, using local fallback:', groqError);
     }
 
     // --- Attempt 3: Local Fallback ---
@@ -217,7 +216,7 @@ Follow these rules strictly:
   } catch (error) {
     console.error('Error in /api/ask-orb:', error);
     return res.status(500).json({
-      text: 'Temporary market data lookup issue.\nPlease try your question again in a moment.\nOrbix continuously monitors Top 100 prices.\nNot financial advice.',
+      text: 'Temporary market data lookup issue.\nPlease try your question again in a moment.\nFarhan Crypto Currency continuously monitors Top 100 prices.\nNot financial advice.',
     });
   }
 });
@@ -239,7 +238,7 @@ app.post('/api/ask-orb/stream', async (req, res) => {
     }
 
     const ctx = buildMarketSummary(coins, cleanQ);
-    const systemInstruction = `You are Orb, the crypto AI assistant for Orbix Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`;
+    const systemInstruction = `You are Orb, the crypto AI assistant for Farhan Crypto Currency Top 100 Bubble Heatmap. Answer in 3 simple lines using live CoinGecko data only + 'Not financial advice.'.\n\n${ctx.marketSummary}`;
 
     // --- Attempt 1: Gemini Stream ---
     const rawApiKey = process.env.GEMINI_API_KEY || '';
@@ -269,27 +268,31 @@ app.post('/api/ask-orb/stream', async (req, res) => {
       }
     }
 
-    // --- Attempt 2: Groq Stream (Backup) --- ✅ ADDED: Lines 281-305
-    try {
-      const stream = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: cleanQ },
-        ],
-        model: 'openai/gpt-oss-120b',
-        stream: true,
-      });
+    // --- Attempt 2: Groq Stream (Backup) ---
+    const groqApiKey = process.env.GROQ_API_KEY || '';
+    if (groqApiKey && !groqApiKey.startsWith('MY_')) {
+      try {
+        const groq = new Groq({ apiKey: groqApiKey });
+        const stream = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: cleanQ },
+          ],
+          model: 'openai/gpt-oss-120b',
+          stream: true,
+        });
 
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+          }
         }
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } catch (groqErr) {
+        console.warn('Groq stream also failed, using local fallback:', groqErr);
       }
-      res.write('data: [DONE]\n\n');
-      return res.end();
-    } catch (groqErr) {
-      console.warn('Groq stream also failed, using local fallback:', groqErr);
     }
 
     // --- Attempt 3: Local Fallback Stream ---

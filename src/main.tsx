@@ -16,16 +16,16 @@ class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Orbix Uncaught Error:', error, errorInfo);
+    console.error('Farhan Crypto Currency Uncaught Error:', error, errorInfo);
   }
   public render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center font-sans">
           <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mb-4">
-            <span className="text-emerald-400 font-bold text-xl">O</span>
+            <span className="text-emerald-400 font-bold text-xl">F</span>
           </div>
-          <h2 className="text-xl font-bold mb-2">Orbix Heatmap Active</h2>
+          <h2 className="text-xl font-bold mb-2">Farhan Crypto Currency Heatmap Active</h2>
           <p className="text-sm text-neutral-400 max-w-md mb-6">
             A minor display issue occurred. Click below to refresh the visualizer.
           </p>

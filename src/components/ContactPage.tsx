@@ -50,20 +50,20 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onBack }) => {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111] border border-[#222] mb-8">
             <Circle className="w-2.5 h-2.5 fill-emerald-500 text-emerald-500" />
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-400">
-              Contact Orbix
+              Contact Farhan Crypto Currency
             </span>
           </div>
           
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white uppercase tracking-tight leading-[1.1] mb-8">
-            Contact Orbix
+            Contact Farhan Crypto Currency
           </h1>
           
           <p className="text-base sm:text-lg text-slate-400 leading-relaxed max-w-2xl mb-8">
-            Have a question, a correction, or an idea for Orbix? Send us a message and a real person will read it.
+            Have a question, a correction, or an idea for Farhan Crypto Currency? Send us a message and a real person will read it.
           </p>
 
           <a 
-            href="mailto:hello@orbix.live"
+            href="mailto:hello@farhancryptocurrency.live"
             className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-emerald-400 transition-colors border-b border-white/20 hover:border-emerald-400 pb-1"
           >
             Email Us Directly
@@ -101,8 +101,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onBack }) => {
                   <Mail className="w-5 h-5 text-slate-300" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-1">Email Orbix</h3>
-                  <a href="mailto:hello@orbix.live" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">hello@orbix.live</a>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-1">Email Farhan Crypto Currency</h3>
+                  <a href="mailto:hello@farhancryptocurrency.live" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">hello@farhancryptocurrency.live</a>
                 </div>
               </div>
 
@@ -123,7 +123,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onBack }) => {
                   <Share2 className="w-5 h-5 text-slate-300" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Follow Orbix</h3>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Follow Farhan Crypto Currency</h3>
                   <div className="flex items-center gap-4 text-slate-400">
                     <a href="#" className="hover:text-white transition-colors"><Twitter className="w-4 h-4" /></a>
                     <a href="#" className="hover:text-white transition-colors"><Instagram className="w-4 h-4" /></a>

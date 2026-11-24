@@ -179,7 +179,7 @@ export default function App() {
       <footer className="mt-auto border-t border-[#141414] bg-[#000000] py-6 px-4 pb-24 md:pb-8 w-full relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
           <div className="flex items-center justify-center md:justify-start gap-4 md:gap-6 text-[11px] font-mono flex-wrap">
-            <span className="text-white font-bold">© 2026 Orbix.</span>
+            <span className="text-white font-bold">© 2026 Farhan Crypto Currency.</span>
             <button onClick={()=>{window.location.hash='#/about'}} className="text-neutral-400 hover:text-white">About</button>
             <button onClick={()=>{window.location.hash='#/contact'}} className="text-neutral-400 hover:text-white">Contact</button>
             <a href="https://www.coingecko.com" target="_blank" rel="noopener" className="text-neutral-500 hover:text-emerald-400">Powered by CoinGecko</a>
