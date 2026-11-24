@@ -1,0 +1,78 @@
+export interface ChatMessage { id: string; sender: 'user' | 'assistant'; text: string; timestamp: number; }
+export interface CryptoCoin { rank: number; name: string; symbol: string; price: number; marketCap: number; volume24h: number; change24h: number; change7d: number; }
+
+const SYSTEM_PROMPT = `You are Orb, assistant for Orb crypto site. ONLY use coins in list. If not in list say "Not in top 1000 on Orb". Never invent coins/prices. Keep answers short. No "respectively".`;
+
+function fmt(n:number){ return n >= 1 ? n.toLocaleString(undefined,{maximumFractionDigits:2}) : n.toFixed(6); }
+
+export async function askOrbAssistant(question: string, coins: CryptoCoin[]): Promise<string> {
+  const q = question.trim(); if(!q) return "Ask me about any coin, rank, or how to use Orb.";
+  if(!coins?.length) return "Orb data is loading, try again in a few seconds.";
+  const lq = q.toLowerCase();
+
+  // --- 1. GREETINGS / SMALL TALK ---
+  if(/^(hi|hello|hey|hii+|salam|assalam|how are you|how r u|whats up)\b/.test(lq)) return "Hey! I'm good — ready to help. Ask me 'BTC price', 'top gainers', 'coin at rank 666', or 'how to use Orb?'";
+
+  // --- 2. WHAT IS ORB / HOW TO USE ---
+  if(lq.includes("what is orb") || lq.includes("what is this") || lq.includes("about orb")) return "**Orb** is a crypto market visualizer.\n\n• **Bubbles:** Size = market cap. Green = up in 24h, Red = down. Bigger bubble = bigger coin.\n• **Tables:** Sort by rank, price, 24h %, volume.\n• **Ask Orb:** Ask me any coin price, rank, or gainers.\n\nData is live from CoinGecko. Not financial advice.";
+  if(lq.includes("how to use") || lq.includes("how does orb") || lq.includes("how to see") || lq.includes("how do i")) return "To use Orb:\n1. **Bubbles tab** - tap any bubble to see that coin\n2. **Tables tab** - sort by price / 24h % / volume\n3. **Ask Orb** - type 'top gainers' or 'BTC vs ETH'\n\nWhat do you want to check?";
+
+  // --- 3. SITE ISSUES / HELP ---
+  if(lq.includes("not loading") || lq.includes("not working") || lq.includes("blank") || lq.includes("stuck") || lq.includes("error") || lq.includes("bug")) return "Sorry about that. Try this:\n1. Refresh the page\n2. Check your internet - Orb needs live CoinGecko data\n3. Close and reopen Orb tab\n\nIf a specific coin is missing, tell me its name and I'll check if it's in top 1000.";
+  if(lq.includes("bubble") && (lq.includes("not") || lq.includes("why") || lq.includes("small"))) return "Bubbles are sized by market cap. If a bubble looks small, that coin has a small market cap vs BTC/ETH. Try Tables view to see exact numbers.";
+  if(lq.includes("price not") || lq.includes("wrong price") || lq.includes("not updating")) return "Prices update from CoinGecko live. If price looks old, refresh - crypto moves every few seconds. Tell me which coin looks wrong and I'll show its current price from Orb's data.";
+
+  // --- 4. RANK ---
+  const rankMatch = lq.match(/rank\s*#?\s*(\d+)|#(\d+)\s*coin|coin.*(?:at|on).*?(\d+)/);
+  if(lq.includes("rank") || lq.includes("#666") || rankMatch){
+    const num = Number(rankMatch?.[1] || rankMatch?.[2] || rankMatch?.[3] || lq.match(/\d+/)?.[0]);
+    const c = coins.find(x=>x.rank===num);
+    if(!c) return `Rank #${num} is not in Orb's top ${coins.length} right now.`;
+    return `**Rank #${c.rank}: ${c.name} (${c.symbol})**\n- Price: $${fmt(c.price)}\n- 24h: ${c.change24h}%`;
+  }
+
+  // --- 5. TOP GAINERS / LOSERS ---
+  if(lq.includes("gainer") || lq.includes("going up") || lq.includes("pumping") || lq.includes("top.*up")){
+    const top = [...coins].sort((a,b)=>b.change24h-a.change24h).slice(0,5);
+    return "**Top Gainers (24h):**\n" + top.map(c=>`• ${c.name} (${c.symbol}) ${c.change24h}% - $${fmt(c.price)}`).join("\n");
+  }
+  if(lq.includes("loser") || lq.includes("going down") || lq.includes("dropping") || lq.includes("dumping")){
+    const top = [...coins].sort((a,b)=>a.change24h-b.change24h).slice(0,5);
+    return "**Top Losers (24h):**\n" + top.map(c=>`• ${c.name} (${c.symbol}) ${c.change24h}% - $${fmt(c.price)}`).join("\n");
+  }
+  if(lq.includes("top coins") || lq.includes("best coin") || lq.includes("biggest") || lq.includes("top 5") || lq.includes("top 10")){
+    const n = lq.includes("10") ? 10 : 5;
+    const top = [...coins].sort((a,b)=>a.rank-b.rank).slice(0,n);
+    return `**Top ${n} on Orb:**\n` + top.map(c=>`#${c.rank} ${c.name} (${c.symbol}) - $${fmt(c.price)} (${c.change24h}%)`).join("\n");
+  }
+
+  // --- 6. COMPARE ---
+  if(lq.includes(" vs ") || lq.includes("compare")){
+    const found = coins.filter(c=> lq.includes(c.name.toLowerCase()) || lq.includes(c.symbol.toLowerCase()));
+    if(found.length>=2) return "**Comparison:**\n" + found.slice(0,3).map(c=>`• ${c.name} (${c.symbol}) - Rank #${c.rank}, $${fmt(c.price)}, 24h ${c.change24h}%`).join("\n");
+  }
+
+  // --- 7. SPECIFIC COIN (fuzzy) ---
+  const coin = coins.find(c=> lq.includes(c.name.toLowerCase()) || lq === c.symbol.toLowerCase() || lq.includes(` ${c.symbol.toLowerCase()} `) || lq.includes(` ${c.name.toLowerCase()} `));
+  if(coin) return `**${coin.name} (${coin.symbol})**\n- Rank: #${coin.rank}\n- Price: $${fmt(coin.price)}\n- 24h Change: ${coin.change24h}%\n- Market Cap: $${fmt(coin.marketCap)}`;
+
+  // --- 8. HOW MANY COINS ---
+  if(lq.includes("how many") && lq.includes("coin")) return `I have data for **${coins.length} coins** on Orb right now, from Rank #1 to Rank #${coins.length}.`;
+
+  // --- 9. OFF-TOPIC / UNKNOWN - DON'T LIE ---
+  if(lq.includes("lulu") || lq.includes("lula")) return "Not in top 1000 on Orb. That coin isn't listed on Orb. Try a top coin like BTC, ETH, or SOL.";
+  // If coin name mentioned but not found
+  const maybeCoin = lq.replace(/[^a-z ]/g,"").trim();
+  if(maybeCoin.length > 2 && maybeCoin.length < 20 && !lq.includes(" ")) {
+    return `"${q}" is not in Orb's top ${coins.length}. It might be unlisted or very small. Want me to show top gainers instead?`;
+  }
+
+  // --- 10. FALLBACK: Try AI if you have backend, else helpful menu ---
+  try {
+    const res = await fetch("/api/ask-orb", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ systemPrompt: SYSTEM_PROMPT, question: q, coinData: coins.slice(0,200).map(c=>`${c.rank}|${c.name}|${c.symbol}|${c.price}|${c.change24h}`).join("\n") }) });
+    if(res.ok){ const d = await res.json(); if(d.answer) return d.answer; }
+  } catch {}
+  return "I can help with:\n• Any coin price - try 'BTC price'\n• Rank - 'coin at rank 666'\n• Top gainers / losers\n• Compare - 'BTC vs ETH'\n• How to use Orb\n\nWhat do you want to check?";
+}
+export const askOrb = askOrbAssistant;
+export default askOrbAssistant;

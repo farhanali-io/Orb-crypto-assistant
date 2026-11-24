@@ -147,12 +147,12 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
 
   const getChangeVal = useCallback((coin: CryptoCoin): number => {
     switch (timeFrame) {
-      case 'hour': return coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h * 0.15;
+      case 'hour': return coin.price_change_percentage_1h_in_currency ?? 0;
       case 'day':
       case 'day_marketcap': return coin.price_change_percentage_24h ?? 0;
-      case 'week': return coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h * 1.5;
-      case 'month': return coin.price_change_percentage_30d_in_currency ?? coin.price_change_percentage_24h * 2.8;
-      case 'year': return coin.price_change_percentage_1y_in_currency ?? coin.price_change_percentage_24h * 4.2;
+      case 'week': return coin.price_change_percentage_7d_in_currency ?? 0;
+      case 'month': return coin.price_change_percentage_30d_in_currency ?? 0;
+      case 'year': return coin.price_change_percentage_1y_in_currency ?? 0;
       default: return coin.price_change_percentage_24h ?? 0;
     }
   }, [timeFrame]);

@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Maximize2, Minimize2, Plus, Bot } from 'lucide-react';
 import { CryptoCoin } from '../types/crypto';
-import { askOrbAssistant, ChatMessage } from '../services/askOrbService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { askOrbAssistant } from '../services/askOrbService';
+type ChatMessage = { id: string; sender: 'user' | 'assistant'; text: string; timestamp: number };
 
 interface Props { isOpen: boolean; onClose: () => void; isMobile: boolean; coins: CryptoCoin[]; }
 const clean = (t:string) => t.replace(/not financial advice\.?/gi,'').replace(/\n{3,}/g,'\n\n').trim();
@@ -19,6 +22,8 @@ export const AskOrbChat: React.FC<Props> = ({ isOpen, onClose, isMobile, coins }
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [vvHeight, setVvHeight] = useState<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const queueRef = useRef<string[]>([]);
+  const processingRef = useRef(false);
   
   useEffect(()=>{ endRef.current?.scrollIntoView({behavior:'smooth'}) },[messages]);
 
@@ -60,11 +65,33 @@ export const AskOrbChat: React.FC<Props> = ({ isOpen, onClose, isMobile, coins }
   };
 
   if(!isOpen) return null;
-  const send = async (q?: string) => {
-    const t = (q || inputVal).trim(); if(!t || loading) return;
+  const processQueue = async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    try {
+      while (queueRef.current.length > 0) {
+        const question = queueRef.current.shift();
+        if (!question) continue;
+        try {
+          const a = await askOrbAssistant(question, coins);
+          setMessages(m=>[...m,{id:`a-${Date.now()}-${Math.random()}`,sender:'assistant',text:clean(a),timestamp:Date.now()}]);
+        } catch (e) {
+          console.error("Ask Orb chat error:", e);
+          setMessages(m=>[...m,{id:`a-${Date.now()}`,sender:'assistant',text:"Oops! I couldn't process that message. Please try again!",timestamp:Date.now()}]);
+        }
+      }
+    } finally {
+      processingRef.current = false;
+      setLoading(false);
+      if (queueRef.current.length > 0) void processQueue();
+    }
+  };
+  const send = (q?: string) => {
+    const t = (q || inputVal).trim(); if(!t) return;
     setInputVal(''); setMessages(m=>[...m,{id:`u-${Date.now()}`,sender:'user',text:t,timestamp:Date.now()}]);
+    queueRef.current.push(t);
     setLoading(true);
-    try { const a = await askOrbAssistant(t, coins); setMessages(m=>[...m,{id:`a-${Date.now()}`,sender:'assistant',text:clean(a),timestamp:Date.now()}]); } finally { setLoading(false); }
+    void processQueue();
   };
   const isFull = fullscreen || isMobile;
   return (
@@ -85,7 +112,7 @@ export const AskOrbChat: React.FC<Props> = ({ isOpen, onClose, isMobile, coins }
           {messages.map(m=>{
             const isUser=m.sender==='user';
             if(isUser) return <div key={m.id} className="flex justify-end"><div className="max-w-[80%] bg-[#242424] border border-[#2E2E2E] rounded-2xl rounded-br-md px-4 py-2.5 text-[14px]">{m.text}</div></div>;
-            return (<div key={m.id} className="flex gap-3"><div className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><Sparkles className="w-3.5 h-3.5 text-emerald-400" /></div><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="text-[11px] font-semibold text-emerald-400">Orb — AI Assistant</span><span className="text-[10px] text-zinc-500 ml-auto">{new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div className="border-l-2 border-emerald-500 pl-4 py-1 text-[14px] leading-relaxed whitespace-pre-wrap">{clean(m.text)}</div><div className="text-[10px] text-zinc-500 mt-2">Sources: Market data • Updated live</div></div></div>);
+            return (<div key={m.id} className="flex gap-3"><div className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><Sparkles className="w-3.5 h-3.5 text-emerald-400" /></div><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="text-[11px] font-semibold text-emerald-400">Orb — AI Assistant</span><span className="text-[10px] text-zinc-500 ml-auto">{new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div className="border-l-2 border-emerald-500 pl-4 py-1 text-[14px] leading-relaxed [&_table]:w-full [&_table]:text-[13px] [&_th]:text-left [&_th]:pb-1 [&_td]:py-0.5 [&_strong]:text-white [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4"><ReactMarkdown remarkPlugins={[remarkGfm]}>{clean(m.text)}</ReactMarkdown></div></div></div>);
           })}
           {loading && <div className="flex gap-3"><div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center"><Bot className="w-3.5 h-3.5 text-emerald-400" /></div><div className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 flex items-center gap-2"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />Analyzing...</div></div>}
           <div ref={endRef} />
